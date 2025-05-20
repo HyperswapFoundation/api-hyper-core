@@ -1,0 +1,31 @@
+{
+  "name": "hypercore-router",
+  "version": "1.0.1",
+  "description": "router between hypercore and defi amms",
+  "main": "index.js",
+  "scripts": {
+    "typechain": "typechain --target ethers-v5 --out-dir src/hypercore/types 'src/hypercore/abis/**/*.json'",
+    "build": "tsc",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "resolutions": {
+  },
+  "dependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "ethers": "^5.7.2",
+    "express": "^5.1.0"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@typechain/ethers-v5": "^11.1.2",
+    "@types/node": "^24.0.3",
+    "ts-node-dev": "^2.0.0",
+    "typechain": "^8.3.2",
+    "typescript": "^5.8.3"
+  }
+}
