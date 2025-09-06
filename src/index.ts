@@ -1,9 +1,10 @@
-import { ethers } from 'ethers'
+import { ethers, constants } from 'ethers'
 import * as dotenv from 'dotenv'
 import express from 'express'
 import cors from 'cors'
-import { UserProxyFactory__factory } from './hypercore/types'
+import { UserProxyFactory, UserProxyFactory__factory } from './hypercore/types'
 import { USER_PROXY_FACTORY_ADDRESS } from './constants'
+
 
 dotenv.config()
 
@@ -87,11 +88,7 @@ async function processQueue() {
   const factory = getNextFactory()
 
   try {
-    const tx = await factory.estimateGas.executeIntent(users)
-      .then(gasLimit => gasLimit.mul(120).div(100))
-      .then(gasLimit => factory.executeIntent(users, { 
-        gasLimit
-      }))
+    const tx = await executeIntentWithFees(factory, users, provider)
     const receipt = await tx.wait()
 
     console.log(
@@ -113,6 +110,38 @@ async function processQueue() {
     }
   }
 }
+
+// provider is your ethers.providers.JsonRpcProvider (v5)
+// factory is a Contract connected with a signer
+
+async function executeIntentWithFees(factory: UserProxyFactory, users: string[], provider: ethers.providers.JsonRpcProvider) {
+  // 1) Get the current base fee (fallback to legacy gasPrice if needed)
+  const latest = await provider.getBlock('latest')
+  const base = latest.baseFeePerGas || (await provider.getGasPrice())
+
+  // 2) Size fees for HyperEVM: tip is 0; give base fee generous headroom (e.g., 3x)
+  const maxPriorityFeePerGas = constants.Zero
+  const maxFeePerGas = base.mul(3) // tune: 2–5x is typical
+
+  // 3) Estimate gas **with the same fee overrides** you’ll use for the real tx
+  const est = await factory.estimateGas.executeIntent(users, {
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+  })
+
+  // 4) Add a safety buffer to the gas limit (e.g., +20%)
+  const gasLimit = est.mul(120).div(100)
+
+  // 5) Send the real tx with EIP-1559 fields
+  const tx = await factory.executeIntent(users, {
+    gasLimit,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+  })
+
+  return tx
+}
+
 
 // ---- API Handlers ----
 async function handleSignalRequest(source: any, res: express.Response) {
