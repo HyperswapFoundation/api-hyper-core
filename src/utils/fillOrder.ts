@@ -29,7 +29,7 @@ export async function fillOrder(
 
   const callbackData = utils.defaultAbiCoder.encode(
     ["address[]", "address[]", "bytes[]"],
-    [tokensToApproveForSwapRouter02, tokensToApproveForReactor, swapRouterMulticallData]
+    [tokensToApproveForSwapRouter02, tokensToApproveForReactor, [ethers.utils.arrayify(swapRouterMulticallData)]]
   );
 
   // 3. Connect contract
