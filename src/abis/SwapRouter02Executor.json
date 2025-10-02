@@ -1,0 +1,145 @@
+[
+    {
+      "type": "constructor",
+      "inputs": [
+        { "name": "_whitelistedCaller", "type": "address" },
+        { "name": "_reactor", "type": "address" },
+        { "name": "_owner", "type": "address" },
+        { "name": "_swapRouter02", "type": "address" }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    { "type": "receive", "stateMutability": "payable" },
+    {
+      "type": "function",
+      "name": "execute",
+      "inputs": [
+        {
+          "name": "order",
+          "type": "tuple",
+          "components": [
+            { "name": "order", "type": "bytes" },
+            { "name": "sig", "type": "bytes" }
+          ]
+        },
+        { "name": "callbackData", "type": "bytes" }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "executeBatch",
+      "inputs": [
+        {
+          "name": "orders",
+          "type": "tuple[]",
+          "components": [
+            { "name": "order", "type": "bytes" },
+            { "name": "sig", "type": "bytes" }
+          ]
+        },
+        { "name": "callbackData", "type": "bytes" }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "multicall",
+      "inputs": [
+        { "name": "tokensToApprove", "type": "address[]" },
+        { "name": "multicallData", "type": "bytes[]" }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "owner",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "address" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "reactorCallback",
+      "inputs": [
+        {
+          "name": "",
+          "type": "tuple[]",
+          "components": [
+            {
+              "name": "info",
+              "type": "tuple",
+              "components": [
+                { "name": "reactor", "type": "address" },
+                { "name": "swapper", "type": "address" },
+                { "name": "nonce", "type": "uint256" },
+                { "name": "deadline", "type": "uint256" },
+                { "name": "additionalValidationContract", "type": "address" },
+                { "name": "additionalValidationData", "type": "bytes" }
+              ]
+            },
+            {
+              "name": "input",
+              "type": "tuple",
+              "components": [
+                { "name": "token", "type": "address" },
+                { "name": "amount", "type": "uint256" },
+                { "name": "maxAmount", "type": "uint256" }
+              ]
+            },
+            {
+              "name": "outputs",
+              "type": "tuple[]",
+              "components": [
+                { "name": "token", "type": "address" },
+                { "name": "amount", "type": "uint256" },
+                { "name": "recipient", "type": "address" }
+              ]
+            },
+            { "name": "sig", "type": "bytes" },
+            { "name": "hash", "type": "bytes32" }
+          ]
+        },
+        { "name": "callbackData", "type": "bytes" }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "transferOwnership",
+      "inputs": [{ "name": "newOwner", "type": "address" }],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "unwrapWETH",
+      "inputs": [{ "name": "recipient", "type": "address" }],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "withdrawETH",
+      "inputs": [{ "name": "recipient", "type": "address" }],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "event",
+      "name": "OwnershipTransferred",
+      "inputs": [
+        { "name": "user", "type": "address", "indexed": true },
+        { "name": "newOwner", "type": "address", "indexed": true }
+      ],
+      "anonymous": false
+    },
+    { "type": "error", "name": "CallerNotWhitelisted", "inputs": [] },
+    { "type": "error", "name": "MsgSenderNotReactor", "inputs": [] },
+    { "type": "error", "name": "NativeTransferFailed", "inputs": [] }
+  ]
+  

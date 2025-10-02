@@ -4,7 +4,8 @@ import express from 'express'
 import cors from 'cors'
 import { UserProxyFactory, UserProxyFactory__factory } from './hypercore/types'
 import { USER_PROXY_FACTORY_ADDRESS } from './constants'
-
+import { fillOrder } from './utils/fillOrder'
+import { parseFillOrderRequest } from './utils/parseFillOrderRequest'
 
 dotenv.config()
 
@@ -32,6 +33,12 @@ function getProvider(chainId: number) {
 }
 
 const provider = getProvider(CHAIN_ID)
+
+export function getNextSigner() {
+  const { wallet } = SIGNER_FACTORY_PAIRS[signerIndex];
+  signerIndex = (signerIndex + 1) % SIGNER_FACTORY_PAIRS.length;
+  return wallet; // ethers.Wallet (Signer)
+}
 
 // ---- Signers + Factories ----
 function getSignerFactoryPairs(chainId: number) {
@@ -64,10 +71,10 @@ const INTENT_MAP: Map<string, number> = new Map()
 let signerIndex = 0
 
 function getNextFactory() {
-  const { factory } = SIGNER_FACTORY_PAIRS[signerIndex]
-  signerIndex = (signerIndex + 1) % SIGNER_FACTORY_PAIRS.length
-  return factory
+  const signer = getNextSigner();
+  return UserProxyFactory__factory.connect(USER_PROXY_FACTORY_ADDRESS, signer);
 }
+
 
 // ---- Queue Processor ----
 async function processQueue() {
@@ -111,28 +118,20 @@ async function processQueue() {
   }
 }
 
-// provider is your ethers.providers.JsonRpcProvider (v5)
-// factory is a Contract connected with a signer
-
 async function executeIntentWithFees(factory: UserProxyFactory, users: string[], provider: ethers.providers.JsonRpcProvider) {
-  // 1) Get the current base fee (fallback to legacy gasPrice if needed)
   const latest = await provider.getBlock('latest')
   const base = latest.baseFeePerGas || (await provider.getGasPrice())
 
-  // 2) Size fees for HyperEVM: tip is 0; give base fee generous headroom (e.g., 3x)
   const maxPriorityFeePerGas = constants.Zero
-  const maxFeePerGas = base.mul(3) // tune: 2–5x is typical
+  const maxFeePerGas = base.mul(3)
 
-  // 3) Estimate gas **with the same fee overrides** you’ll use for the real tx
   const est = await factory.estimateGas.executeIntent(users, {
     maxFeePerGas,
     maxPriorityFeePerGas,
   })
 
-  // 4) Add a safety buffer to the gas limit (e.g., +20%)
   const gasLimit = est.mul(120).div(100)
 
-  // 5) Send the real tx with EIP-1559 fields
   const tx = await factory.executeIntent(users, {
     gasLimit,
     maxFeePerGas,
@@ -141,7 +140,6 @@ async function executeIntentWithFees(factory: UserProxyFactory, users: string[],
 
   return tx
 }
-
 
 // ---- API Handlers ----
 async function handleSignalRequest(source: any, res: express.Response) {
@@ -162,11 +160,38 @@ async function handleSignalRequest(source: any, res: express.Response) {
   }
 }
 
+// 🆕 New fill-order handler
+async function handleFillOrderRequest(source: any, res: express.Response) {
+  try {
+    const parsed = parseFillOrderRequest(source)
+    const signer = getNextSigner();
+    const txHash = await fillOrder(
+      signer,
+      parsed.dutchOrder,
+      parsed.tokenInAddress,
+      parsed.tokenOutAddress,
+      parsed.signature,
+      parsed.orderMulticallData
+    );
+
+    res.json({ status: "ok", txHash })
+
+    res.json({
+      status: "ok",
+      message: "Order received — fill logic not implemented yet",
+      received: parsed,
+    })
+  } catch (err: any) {
+    console.error("handleFillOrderRequest error:", err)
+    res.status(400).json({ error: err.message })
+  }
+}
+
 // ---- Replace the block listener with a timer ----
 let isRunning = false;
 
 setInterval(async () => {
-  if (isRunning) return; // prevent overlapping runs
+  if (isRunning) return;
   isRunning = true;
   try {
     await processQueue();
@@ -177,7 +202,6 @@ setInterval(async () => {
   }
 }, 1000);
 
-
 // ---- Express App ----
 const app = express()
 app.use(express.json())
@@ -187,8 +211,13 @@ app.post('/signal', async (req: any, res: express.Response) => {
   await handleSignalRequest(req.body, res)
 })
 
+// 🆕 New endpoint
+app.post('/fill-order', async (req: any, res: express.Response) => {
+  await handleFillOrderRequest(req.body, res)
+})
+
 const port = process.env.PORT || 3009
 app.listen(port, () => {
   console.log(`API server listening on port ${port}`)
-  console.log(`POST /signal endpoint available`)
+  console.log(`POST /signal and POST /fill-order endpoints available`)
 })
