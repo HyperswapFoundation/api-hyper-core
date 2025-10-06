@@ -168,10 +168,11 @@ async function handleFillOrderRequest(source: any, res: express.Response) {
     const txHash = await fillOrder(
       signer,
       parsed.dutchOrder,
+      parsed.account,
       parsed.tokenInAddress,
       parsed.tokenOutAddress,
       parsed.signature,
-      parsed.orderMulticallData
+      parsed.orderMulticallData,
     );
 
     res.json({ status: "ok", txHash })

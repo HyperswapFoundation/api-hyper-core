@@ -9,7 +9,7 @@ export interface FillOrderMetadata {
     signature: string;
     /** Raw calldata (hex) for SwapRouter02 multicall or single call */
     orderRoute: string;
-
+    account: string;
     tokenInAddress: string;
     tokenOutAddress: string;
   }
@@ -24,6 +24,7 @@ export interface FillOrderMetadata {
     dutchOrder: DutchOrder;
     signature: string;
     orderMulticallData: string;
+    account: string,
     tokenInAddress: string;
     tokenOutAddress: string;
     chainId: number;

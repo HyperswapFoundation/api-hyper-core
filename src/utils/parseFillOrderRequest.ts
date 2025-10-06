@@ -17,6 +17,7 @@ export function parseFillOrderRequest(body: unknown): ParsedFillOrder {
     orderRoute,
     tokenInAddress,
     tokenOutAddress,
+    account,
   } = order
 
   if (!signature || typeof signature !== 'string') throw new Error('Missing or invalid signature')
@@ -39,6 +40,7 @@ export function parseFillOrderRequest(body: unknown): ParsedFillOrder {
     // Normalize to canonical names internally
     tokenInAddress: tokenInAddress,
     tokenOutAddress: tokenOutAddress,
+    account,
     chainId,
   }
 }
