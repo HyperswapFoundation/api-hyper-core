@@ -1,2 +1,2 @@
 export const USER_PROXY_FACTORY_ADDRESS = '0x5c523a1cD987181CA86F4E20AefA8A961cDEecD9';
-export const SwapRouter02ExecutorAddress = '0xBe6d02FD9335C2e1e33bBC174ad7ee36764C8EE7'
+export const SwapRouter02ExecutorAddress = '0x87ac8F4aD3BaB7c213d106BDa1Fc2B1759379868'
