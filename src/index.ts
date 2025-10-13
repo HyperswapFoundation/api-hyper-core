@@ -25,20 +25,21 @@ function getProvider(chainId: number) {
     const wsProvider = new ethers.providers.WebSocketProvider(rpcUrl, chainId)
     wsProvider._websocket.on('close', () => {
       console.error('[Provider] WebSocket closed, attempting reconnect...')
-      setTimeout(() => getProvider(chainId), 5000)
+      setTimeout(() => {
+        const next = getProvider(chainId)
+        // reassign the global reference
+        if (chainId === CHAIN_ID) {
+          (provider as any) = next as any // or refactor to allow reassignment
+        }
+      }, 5000)
     })
+
     return wsProvider
   }
   return new ethers.providers.JsonRpcProvider(rpcUrl, chainId)
 }
 
 const provider = getProvider(CHAIN_ID)
-
-export function getNextSigner() {
-  const { wallet } = SIGNER_FACTORY_PAIRS[signerIndex];
-  signerIndex = (signerIndex + 1) % SIGNER_FACTORY_PAIRS.length;
-  return wallet; // ethers.Wallet (Signer)
-}
 
 // ---- Signers + Factories ----
 function getSignerFactoryPairs(chainId: number) {
@@ -69,6 +70,12 @@ const SIGNER_FACTORY_PAIRS = getSignerFactoryPairs(CHAIN_ID)
 // ---- Intent State ----
 const INTENT_MAP: Map<string, number> = new Map()
 let signerIndex = 0
+
+export function getNextSigner() {
+  const { wallet } = SIGNER_FACTORY_PAIRS[signerIndex];
+  signerIndex = (signerIndex + 1) % SIGNER_FACTORY_PAIRS.length;
+  return wallet; // ethers.Wallet (Signer)
+}
 
 function getNextFactory() {
   const signer = getNextSigner();
