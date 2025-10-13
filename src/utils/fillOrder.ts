@@ -77,13 +77,13 @@ export async function fillOrder(
   );
 
   // 4. Dry-run with callStatic
-  try {
-    await executor.callStatic.execute(signedOrder, callbackData);
-    console.log("✅ callStatic success — transaction should succeed");
-  } catch (err: any) {
-    console.error("❌ callStatic reverted:", err);
-    throw new Error(err?.reason || err?.message || "callStatic failed");
-  }
+  // try {
+  //   await executor.callStatic.execute(signedOrder, callbackData);
+  //   console.log("✅ callStatic success — transaction should succeed");
+  // } catch (err: any) {
+  //   console.error("❌ callStatic reverted:", err);
+  //   throw new Error(err?.reason || err?.message || "callStatic failed");
+  // }
 
   // 5. Execute for real
   const tx = await executor.estimateGas.execute(signedOrder, callbackData)

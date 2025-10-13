@@ -177,11 +177,6 @@ async function handleFillOrderRequest(source: any, res: express.Response) {
 
     res.json({ status: "ok", txHash })
 
-    res.json({
-      status: "ok",
-      message: "Order received — fill logic not implemented yet",
-      received: parsed,
-    })
   } catch (err: any) {
     console.error("handleFillOrderRequest error:", err)
     res.status(400).json({ error: err.message })
