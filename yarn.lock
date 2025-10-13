@@ -517,10 +517,10 @@
     tiny-invariant "^1.1.0"
     toformat "^2.0.0"
 
-"@uniswap/uniswapx-sdk@npm:@hyper-swap-labs/uniswapx-sdk@2.0.1-alpha.15":
-  version "2.0.1-alpha.15"
-  resolved "https://registry.npmjs.org/@hyper-swap-labs/uniswapx-sdk/-/uniswapx-sdk-2.0.1-alpha.15.tgz"
-  integrity sha512-tMRnulpzqOdS0jctwtH83dK0lz2wRVaa7fzrHKgfPSN4nUJJMaVgdJf8hnM56WFRHk3kbCOUufSv8SOAHMRZww==
+"@uniswap/uniswapx-sdk@npm:@hyperswap-labs/uniswapx-sdk@2.0.1":
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/@hyperswap-labs/uniswapx-sdk/-/uniswapx-sdk-2.0.1.tgz#8164f2fe6219531b190de3ed6afb87315150f218"
+  integrity sha512-vyUPXeHgFFTLwveQax8fKI2tuJteeAJSRhadgtQ8X/0cDOVadiZW+4zN0dvHJT42FeGAtqiTLNL+6NdnhSCOOg==
   dependencies:
     "@ethersproject/bytes" "^5.7.0"
     "@ethersproject/providers" "^5.7.0"
