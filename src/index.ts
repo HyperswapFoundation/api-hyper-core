@@ -213,7 +213,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }))
-app.options('*', cors())
+app.options(/.*/, cors())
 
 app.post('/signal', async (req: any, res: express.Response) => {
   await handleSignalRequest(req.body, res)
