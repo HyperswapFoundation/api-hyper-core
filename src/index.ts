@@ -1,7 +1,6 @@
 import { ethers, constants } from 'ethers'
 import * as dotenv from 'dotenv'
 import express from 'express'
-import serverless from 'serverless-http'
 import cors from 'cors'
 import { UserProxyFactory, UserProxyFactory__factory } from './hypercore/types'
 import { USER_PROXY_FACTORY_ADDRESS } from './constants'
@@ -226,11 +225,7 @@ app.post('/fill-order', async (req: any, res: express.Response) => {
 })
 
 const port = process.env.PORT || 3009
-if (!process.env.AWS_LAMBDA_FUNCTION_NAME) {
-  app.listen(port, () => {
-    console.log(`API server listening on port ${port}`)
-    console.log(`POST /signal and POST /fill-order endpoints available`)
-  })
-}
-
-export const handler = serverless(app)
+app.listen(port, () => {
+  console.log(`API server listening on port ${port}`)
+  console.log(`POST /signal and POST /fill-order endpoints available`)
+})
