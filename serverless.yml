@@ -25,9 +25,9 @@ provider:
             - logs:CreateLogStream
             - logs:PutLogEvents
           Resource: "*"
-  apiGateway:
-    apiKeys:
-      - apiHyperCoreKey # x-api-key header value
+  #apiGateway:
+  #  apiKeys:
+  #    - apiHyperCoreKey # x-api-key header value
 
 functions:
   api:
@@ -36,11 +36,28 @@ functions:
       - http:
           path: /{proxy+}
           method: ANY
-          private: true
+          cors:
+            origin: "*"
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Requested-With
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            methods:
+              - OPTIONS
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+          #private: true
       - http:
           path: /
           method: ANY
-          private: true
+          cors: true
+          #private: true
 
 package:
   include:
@@ -71,6 +88,27 @@ custom:
     logging: false
 
 resources:
+  Resources:
+    GatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'*'"
+    GatewayResponseDefault5XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_5XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'*'"
   Outputs:
     ApiGatewayRestApiId:
       Value:
