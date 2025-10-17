@@ -22,17 +22,23 @@ const pkList = (process.env.SIGNER_PRIVATE_KEY_MAP || '')
 
 if (pkList.length === 0) throw new Error('No private keys in SIGNER_PRIVATE_KEY_MAP')
 
-let signerIndex = 0
 function getNextSigner() {
-  const pk = pkList[signerIndex]
-  signerIndex = (signerIndex + 1) % pkList.length
+  const randomIndex = Math.floor(Math.random() * pkList.length)
+  const pk = pkList[randomIndex]
   return new ethers.Wallet(pk, provider)
 }
 
-// ---- Handlers ----
-async function handleFillOrderRequest(source: any, res: express.Response) {
+// ---- Express App ----
+const app = express()
+
+// ✅ Allow CORS from any origin
+app.use(cors({ origin: '*', methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Content-Type'] }))
+app.use(express.json())
+
+// ---- Route ----
+app.post('/fill-order', async (req, res) => {
   try {
-    const parsed = parseFillOrderRequest(source)
+    const parsed = parseFillOrderRequest(req.body)
     const signer = getNextSigner()
     const receipt = await fillOrder(
       signer,
@@ -43,25 +49,12 @@ async function handleFillOrderRequest(source: any, res: express.Response) {
       parsed.signature,
       parsed.orderMulticallData
     )
-
     res.json({ status: 'ok', txHash: receipt })
   } catch (err: any) {
-    console.error('handleFillOrderRequest error:', err)
+    console.error('fill-order error:', err)
     res.status(400).json({ error: err.message })
   }
-}
-
-// ---- Express App ----
-const app = express()
-app.use(express.json())
-app.use(cors())
-
-app.post('/fill-order', async (req, res) => {
-  await handleFillOrderRequest(req.body, res)
 })
 
-const port = process.env.PORT || 3009
-app.listen(port, () => {
-  console.log(`API server listening on port ${port}`)
-  console.log(`POST /fill-order endpoint ready`)
-})
+// ✅ Export app instead of listening — Vercel handles HTTP
+export default app
