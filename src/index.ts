@@ -32,7 +32,7 @@ function getNextSigner() {
 const app = express()
 
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Content-Type'] }))
-app.options('*', cors())
+// app.options('*', cors())
 app.use(express.json())
 
 // ---- Health Check / Visual Status Endpoint ----
