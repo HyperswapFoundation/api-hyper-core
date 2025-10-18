@@ -4,6 +4,8 @@ import express from 'express'
 import cors from 'cors'
 import { fillOrder } from './utils/fillOrder'
 import { parseFillOrderRequest } from './utils/parseFillOrderRequest'
+import type { Request, Response, NextFunction } from 'express'
+
 
 dotenv.config()
 
@@ -32,8 +34,18 @@ function getNextSigner() {
 const app = express()
 
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Content-Type'] }))
-// app.options('*', cors())
 app.use(express.json())
+
+app.use((req: Request, res: Response, next: NextFunction): void => {
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    res.status(204).end()
+    return
+  }
+  next()
+})
 
 // ---- Health Check / Visual Status Endpoint ----
 app.get('/', (_req, res) => {
