@@ -33,6 +33,7 @@ const app = express()
 
 // ✅ Allow CORS from any origin
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Content-Type'] }))
+app.options('*', cors())
 app.use(express.json())
 
 // ---- Route ----
