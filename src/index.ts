@@ -31,12 +31,26 @@ function getNextSigner() {
 // ---- Express App ----
 const app = express()
 
-// ✅ Allow CORS from any origin
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Content-Type'] }))
 app.options('*', cors())
 app.use(express.json())
 
-// ---- Route ----
+// ---- Health Check / Visual Status Endpoint ----
+app.get('/', (_req, res) => {
+  res.send(`
+    <html>
+      <head><title>Hypercore Router API</title></head>
+      <body style="font-family: monospace; padding: 2rem; background: #0f0f0f; color: #00ff90;">
+        <h2>✅ Hypercore Router API is live</h2>
+        <p>Chain ID: ${CHAIN_ID}</p>
+        <p>RPC URL: ${RPC_URL}</p>
+        <p>Available endpoint: <strong>POST /fill-order</strong></p>
+      </body>
+    </html>
+  `)
+})
+
+// ---- Main Endpoint ----
 app.post('/fill-order', async (req, res) => {
   try {
     const parsed = parseFillOrderRequest(req.body)
@@ -50,6 +64,7 @@ app.post('/fill-order', async (req, res) => {
       parsed.signature,
       parsed.orderMulticallData
     )
+
     res.json({ status: 'ok', txHash: receipt })
   } catch (err: any) {
     console.error('fill-order error:', err)
@@ -57,5 +72,5 @@ app.post('/fill-order', async (req, res) => {
   }
 })
 
-// ✅ Export app instead of listening — Vercel handles HTTP
+// ✅ Export app for Vercel
 export default app
