@@ -5,6 +5,7 @@ import cors from 'cors'
 import { fillOrder } from './utils/fillOrder'
 import { parseFillOrderRequest } from './utils/parseFillOrderRequest'
 import type { Request, Response, NextFunction } from 'express'
+import { SwapRouter02ExecutorAddress } from './constants'
 
 
 dotenv.config()
@@ -57,6 +58,7 @@ app.get('/', (_req, res) => {
         <p>Chain ID: ${CHAIN_ID}</p>
         <p>RPC URL: ${RPC_URL}</p>
         <p>Available endpoint: <strong>POST /fill-order</strong></p>
+        <p>Filler Address: ${SwapRouter02ExecutorAddress}</p>
       </body>
     </html>
   `)
