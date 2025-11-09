@@ -38,7 +38,6 @@ export function processMulticallData(
   );
 }
 
-
 export async function fillOrder(
   signer: Wallet,
   order: DutchOrder,

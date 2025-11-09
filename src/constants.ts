@@ -1,2 +1,3 @@
 export const USER_PROXY_FACTORY_ADDRESS = '0x5c523a1cD987181CA86F4E20AefA8A961cDEecD9';
-export const SwapRouter02ExecutorAddress = '0x9Cd0c5FCD58B18215D8E033D816b86d783bF5434' 
+export const SwapRouter02ExecutorAddress = '0x9Cd0c5FCD58B18215D8E033D816b86d783bF5434'
+export const HypercoreFillerAddress = ''

@@ -6,6 +6,7 @@ import { fillOrder } from './utils/fillOrder'
 import { parseFillOrderRequest } from './utils/parseFillOrderRequest'
 import type { Request, Response, NextFunction } from 'express'
 import { SwapRouter02ExecutorAddress } from './constants'
+import { fillOrderHC } from './utils/fillOrderHC'
 
 
 dotenv.config()
@@ -82,6 +83,26 @@ app.post('/fill-order', async (req, res) => {
     res.json({ status: 'ok', txHash: receipt })
   } catch (err: any) {
     console.error('fill-order error:', err)
+    res.status(400).json({ error: err.message })
+  }
+})
+
+app.post('/fill-order-hc', async (req, res) => {
+  try {
+    const parsed = parseFillOrderRequest(req.body)
+    const signer = getNextSigner()
+    const receipt = await fillOrderHC(
+      signer,
+      parsed.dutchOrder,
+      parsed.account,
+      parsed.tokenInAddress,
+      parsed.tokenOutAddress,
+      parsed.signature,
+    )
+
+    res.json({ status: 'ok', txHash: receipt })
+  } catch (err: any) {
+    console.error('fill-order-hc error:', err)
     res.status(400).json({ error: err.message })
   }
 })
