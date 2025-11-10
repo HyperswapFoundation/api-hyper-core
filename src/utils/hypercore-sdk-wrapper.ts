@@ -1,6 +1,6 @@
 import { Hyperliquid, SpotToken } from "hyperliquid";
-import { encodeAndSendCoreAction } from "./hypercore";
 import { signalOrderFailed, signalOrderFilled } from "./signals";
+import { encodeAndSendCoreAction } from "./hypercore";
 
 const apiPrivateKey = process.env.API_PRIVATE_KEY!;
 const apiWallet = process.env.API_WALLET_ADDRESS!;
@@ -62,7 +62,7 @@ async function placeLimitOrderToUsd(
 ) {
   const sdk = getSDK();
   const market = `${inputToken.coin}-USD`;
-  const price = await sdk.info.getMidPrice(market);
+  const price = inputToken.midPrice!;
   const limitPrice = price * 0.99; // slight discount to ensure fill
 
   console.log(`Placing SELL ${inputToken.name} → USD @ ${limitPrice}`);
@@ -84,7 +84,7 @@ async function placeLimitOrderToOutput(
 ) {
   const sdk = getSDK();
   const market = `${outputToken.coin}-USD`;
-  const price = await sdk.info.getMidPrice(market);
+  const price = outputToken.midPrice!;
   const limitPrice = price * 1.01; // slight premium to ensure buy
 
   console.log(`Placing BUY USD → ${outputToken.name} @ ${limitPrice}`);
@@ -151,7 +151,7 @@ export async function swapHypercore(
   let swapState = SwapState.Pending;
   let amountUsd = 0;
 
-  if(!inputToken || !outputToken) {
+  if(!inputToken || !outputToken || !inputToken.midPrice || !outputToken.midPrice) {
     console.log('Could not resolve swap metadata');
     return;
   }
@@ -189,7 +189,7 @@ export async function swapHypercore(
 
     try {
       if (swapState === SwapState.OrderPlacedUSD) {
-        returnedInputAmount = await placeLimitOrderToInput(inputToken, amountUsd);
+        returnedInputAmount = await placeLimitOrderToInput(inputToken, inputToken.midPrice.toString(),  amountUsd);
         swapState = SwapState.Delegated;
       }
 
