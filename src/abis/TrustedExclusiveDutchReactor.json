@@ -251,10 +251,15 @@
                 "name": "returnedInputAmount",
                 "type": "uint256",
                 "internalType": "uint256"
+            },
+            {
+                "name": "apiWallet",
+                "type": "address",
+                "internalType": "address"
             }
         ],
         "outputs": [],
-        "stateMutability": "nonpayable"
+        "stateMutability": "payable"
     },
     {
         "type": "function",

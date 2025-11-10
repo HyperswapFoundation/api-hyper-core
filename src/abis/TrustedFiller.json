@@ -1,0 +1,352 @@
+[
+    {
+        "type": "constructor",
+        "inputs": [
+            {
+                "name": "_whitelistedCallers",
+                "type": "address[]",
+                "internalType": "address[]"
+            },
+            {
+                "name": "_reactor",
+                "type": "address",
+                "internalType": "contract ITrustedReactor"
+            },
+            {
+                "name": "_owner",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "receive",
+        "stateMutability": "payable"
+    },
+    {
+        "type": "function",
+        "name": "execute",
+        "inputs": [
+            {
+                "name": "order",
+                "type": "tuple",
+                "internalType": "struct SignedOrder",
+                "components": [
+                    {
+                        "name": "order",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                    },
+                    {
+                        "name": "sig",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                    }
+                ]
+            },
+            {
+                "name": "callbackData",
+                "type": "bytes",
+                "internalType": "bytes"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "executeBatch",
+        "inputs": [
+            {
+                "name": "orders",
+                "type": "tuple[]",
+                "internalType": "struct SignedOrder[]",
+                "components": [
+                    {
+                        "name": "order",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                    },
+                    {
+                        "name": "sig",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                    }
+                ]
+            },
+            {
+                "name": "callbackData",
+                "type": "bytes",
+                "internalType": "bytes"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "owner",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "reactor",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "",
+                "type": "address",
+                "internalType": "contract ITrustedReactor"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "reactorCallback",
+        "inputs": [
+            {
+                "name": "orders",
+                "type": "tuple[]",
+                "internalType": "struct ResolvedOrder[]",
+                "components": [
+                    {
+                        "name": "info",
+                        "type": "tuple",
+                        "internalType": "struct OrderInfo",
+                        "components": [
+                            {
+                                "name": "reactor",
+                                "type": "address",
+                                "internalType": "contract IReactor"
+                            },
+                            {
+                                "name": "swapper",
+                                "type": "address",
+                                "internalType": "address"
+                            },
+                            {
+                                "name": "nonce",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            },
+                            {
+                                "name": "deadline",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            },
+                            {
+                                "name": "additionalValidationContract",
+                                "type": "address",
+                                "internalType": "contract IValidationCallback"
+                            },
+                            {
+                                "name": "additionalValidationData",
+                                "type": "bytes",
+                                "internalType": "bytes"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "input",
+                        "type": "tuple",
+                        "internalType": "struct InputToken",
+                        "components": [
+                            {
+                                "name": "token",
+                                "type": "address",
+                                "internalType": "contract ERC20"
+                            },
+                            {
+                                "name": "amount",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            },
+                            {
+                                "name": "maxAmount",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "outputs",
+                        "type": "tuple[]",
+                        "internalType": "struct OutputToken[]",
+                        "components": [
+                            {
+                                "name": "token",
+                                "type": "address",
+                                "internalType": "address"
+                            },
+                            {
+                                "name": "amount",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            },
+                            {
+                                "name": "recipient",
+                                "type": "address",
+                                "internalType": "address"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "sig",
+                        "type": "bytes",
+                        "internalType": "bytes"
+                    },
+                    {
+                        "name": "hash",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                    }
+                ]
+            },
+            {
+                "name": "callbackData",
+                "type": "bytes",
+                "internalType": "bytes"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "transferOwnership",
+        "inputs": [
+            {
+                "name": "newOwner",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "updateReactor",
+        "inputs": [
+            {
+                "name": "_reactor",
+                "type": "address",
+                "internalType": "contract ITrustedReactor"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "updateWhitelist",
+        "inputs": [
+            {
+                "name": "wl",
+                "type": "address",
+                "internalType": "address"
+            },
+            {
+                "name": "isAllowed",
+                "type": "bool",
+                "internalType": "bool"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "withdrawERC20",
+        "inputs": [
+            {
+                "name": "token",
+                "type": "address",
+                "internalType": "contract ERC20"
+            },
+            {
+                "name": "to",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "withdrawETH",
+        "inputs": [
+            {
+                "name": "recipient",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "event",
+        "name": "OwnershipTransferred",
+        "inputs": [
+            {
+                "name": "user",
+                "type": "address",
+                "indexed": true,
+                "internalType": "address"
+            },
+            {
+                "name": "newOwner",
+                "type": "address",
+                "indexed": true,
+                "internalType": "address"
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "ReactorChanged",
+        "inputs": [
+            {
+                "name": "newReactor",
+                "type": "address",
+                "indexed": false,
+                "internalType": "address"
+            },
+            {
+                "name": "oldReactor",
+                "type": "address",
+                "indexed": false,
+                "internalType": "address"
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "error",
+        "name": "CallerNotWhitelisted",
+        "inputs": []
+    },
+    {
+        "type": "error",
+        "name": "InsufficientAmount",
+        "inputs": []
+    },
+    {
+        "type": "error",
+        "name": "MsgSenderNotReactor",
+        "inputs": []
+    }
+]
