@@ -28,9 +28,10 @@ export async function fillOrderHC(
   };
 
   const tokensToApproveForReactor: string[] = [tokenInAddress, tokenOutAddress]; 
+  const apiWallets: string[] = ['0xB07DA14A3113E020bE8f2d64Fb0b88B5d49c5a78']
   const callbackData = utils.defaultAbiCoder.encode(
-    ["address[]"],
-    [tokensToApproveForReactor]
+    ["address[]", "address[]"],
+    [apiWallets, tokensToApproveForReactor]
   );
 
   // 3. Connect contract
@@ -54,7 +55,7 @@ export async function fillOrderHC(
     .then(gasLimit => executor.execute(signedOrder, callbackData, { gasLimit }));
 
    console.log('Processing Order TX Hash:' + captureOrderFundsTx.hash)
-   captureOrderFundsTx.wait();
+   await captureOrderFundsTx.wait();
 
    swapHypercore(order.hash(), inputToken, inputMetadata.startAmount.toString(), outputToken, outputMetadata.endAmount.toString(), HypercoreFillerAddress)
 }

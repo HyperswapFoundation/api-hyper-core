@@ -8,12 +8,13 @@ import type { Request, Response, NextFunction } from 'express'
 import { SwapRouter02ExecutorAddress } from './constants'
 import { fillOrderHC } from './utils/fillOrderHC'
 
-
 dotenv.config()
 
 // ---- Config ----
 const CHAIN_ID = 999
 const RPC_URL = process.env.RPC_URL_HYPEREVM || 'https://rpc.hyperliquid.xyz/evm'
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3009
+const LOCAL_MODE = process.env.LOCAL_MODE === 'true'
 
 // ---- Provider ----
 const provider = new ethers.providers.JsonRpcProvider(RPC_URL, CHAIN_ID)
@@ -49,7 +50,7 @@ app.use((req: Request, res: Response, next: NextFunction): void => {
   next()
 })
 
-// ---- Health Check / Visual Status Endpoint ----
+// ---- Health Check ----
 app.get('/', (_req, res) => {
   res.send(`
     <html>
@@ -58,14 +59,18 @@ app.get('/', (_req, res) => {
         <h2>✅ Hypercore Router API is live</h2>
         <p>Chain ID: ${CHAIN_ID}</p>
         <p>RPC URL: ${RPC_URL}</p>
-        <p>Available endpoint: <strong>POST /fill-order</strong></p>
+        <p>Available endpoints:</p>
+        <ul>
+          <li><strong>POST /fill-order</strong></li>
+          <li><strong>POST /fill-order-hc</strong></li>
+        </ul>
         <p>Filler Address: ${SwapRouter02ExecutorAddress}</p>
       </body>
     </html>
   `)
 })
 
-// ---- Main Endpoint ----
+// ---- API Routes ----
 app.post('/fill-order', async (req, res) => {
   try {
     const parsed = parseFillOrderRequest(req.body)
@@ -97,7 +102,7 @@ app.post('/fill-order-hc', async (req, res) => {
       parsed.account,
       parsed.tokenInAddress,
       parsed.tokenOutAddress,
-      parsed.signature,
+      parsed.signature
     )
 
     res.json({ status: 'ok', txHash: receipt })
@@ -107,5 +112,12 @@ app.post('/fill-order-hc', async (req, res) => {
   }
 })
 
-// ✅ Export app for Vercel
+if (LOCAL_MODE || process.env.NODE_ENV === 'development') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Local Hypercore Router running on http://localhost:${PORT}`)
+    console.log(`→ Chain ID: ${CHAIN_ID}`)
+    console.log(`→ RPC URL: ${RPC_URL}`)
+  })
+}
+
 export default app
