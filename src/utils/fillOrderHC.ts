@@ -1,13 +1,12 @@
 import { DutchOrder } from "@uniswap/uniswapx-sdk";
 import { HypercoreFillerAddress, SwapRouter02ExecutorAddress } from "../constants";
 import TRUSTED_FILLER_ABI from '../abis/TrustedFiller.json'
-import { Contract, utils, Wallet } from "ethers";
+import { BigNumber, Contract, utils, Wallet } from "ethers";
 import { getSpotInfos, swapHypercore } from "./hypercore-sdk-wrapper";
 
 export async function fillOrderHC(
   signer: Wallet,
   order: DutchOrder,
-  account: string,
   tokenInAddress: string,
   tokenOutAddress: string,
   signature: string,
@@ -17,8 +16,9 @@ export async function fillOrderHC(
   const outputMetadata = order.info.outputs[0];
   const [inputToken, outputToken] = await getSpotInfos(inputMetadata.token, outputMetadata.token);
 
-  if(!inputToken || !outputToken) {
-    throw new Error('Could not resolve Hypercore Route');
+  if(!inputToken || !outputToken || !inputToken.midPrice || !outputToken.midPrice || !inputToken.evmContract?.address) {
+    console.log('Could not resolve swap metadata');
+    return;
   }
 
   // 1. Build the SignedOrder struct
@@ -57,5 +57,8 @@ export async function fillOrderHC(
    console.log('Processing Order TX Hash:' + captureOrderFundsTx.hash)
    await captureOrderFundsTx.wait();
 
-   swapHypercore(order.hash(), inputToken, inputMetadata.startAmount.toString(), outputToken, outputMetadata.endAmount.toString(), HypercoreFillerAddress)
+   const inputStartAmount = BigNumber.from((inputMetadata.startAmount as any).hex);
+   const outputEndAmount = BigNumber.from((outputMetadata.endAmount as any).hex);
+   
+   swapHypercore(order.hash(), inputToken, inputStartAmount.toString(), outputToken, outputEndAmount.toString(), HypercoreFillerAddress, signer)
 }

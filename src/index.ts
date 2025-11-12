@@ -99,7 +99,6 @@ app.post('/fill-order-hc', async (req, res) => {
     const receipt = await fillOrderHC(
       signer,
       parsed.dutchOrder,
-      parsed.account,
       parsed.tokenInAddress,
       parsed.tokenOutAddress,
       parsed.signature

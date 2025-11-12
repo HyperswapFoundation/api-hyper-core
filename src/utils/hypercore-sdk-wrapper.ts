@@ -1,6 +1,7 @@
 import { Hyperliquid, SpotToken } from "hyperliquid";
 import { signalOrderFailed, signalOrderFilled } from "./signals";
 import { encodeAndSendCoreAction } from "./hypercore";
+import { Wallet } from "ethers";
 
 const apiPrivateKey = process.env.API_PRIVATE_KEY!;
 const apiWallet = process.env.API_WALLET_ADDRESS!;
@@ -146,15 +147,19 @@ export async function swapHypercore(
   inputAmountRaw: string,
   outputToken: SpotTokenExtended,
   minOutputAmountRaw: string,
-  fillerAddress: string
+  fillerAddress: string,
+  apiWallet: Wallet
 ) {
   let swapState = SwapState.Pending;
   let amountUsd = 0;
 
-  if(!inputToken || !outputToken || !inputToken.midPrice || !outputToken.midPrice) {
+  if(!inputToken || !outputToken || !inputToken.midPrice || !outputToken.midPrice || !inputToken.evmContract?.address || !outputToken.evmContract?.address) {
     console.log('Could not resolve swap metadata');
     return;
   }
+
+  //TODO: DELETE THIS just testing the settle
+  await signalOrderFilled(orderId, outputToken.evmContract?.address, minOutputAmountRaw, apiWallet);
 
   try {
     // 1️⃣ Delegate funds
@@ -178,7 +183,7 @@ export async function swapHypercore(
     swapState = SwapState.WithdrawnToFiller;
 
     // 5️⃣ Signal success
-    await signalOrderFilled(orderId, filledOutputAmount);
+    await signalOrderFilled(orderId, filledOutputAmount, minOutputAmountRaw, apiWallet);
     swapState = SwapState.Completed;
 
     console.log(`[${orderId}] Swap completed successfully`);
@@ -194,7 +199,7 @@ export async function swapHypercore(
       }
 
       if (swapState === SwapState.Delegated) {
-        await signalOrderFailed(orderId, returnedInputAmount);
+        await signalOrderFailed(orderId, inputToken.evmContract?.address, returnedInputAmount, apiWallet);
       }
     } catch (rollbackEx) {
       console.error(`[${orderId}] Rollback failed:`, rollbackEx);
