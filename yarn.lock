@@ -53,7 +53,7 @@
     "@ethersproject/logger" "^5.8.0"
     "@ethersproject/properties" "^5.8.0"
 
-"@ethersproject/address@^5.0.2", "@ethersproject/address@^5.8.0", "@ethersproject/address@5.8.0":
+"@ethersproject/address@^5.0.2", "@ethersproject/address@^5.7.0", "@ethersproject/address@^5.8.0", "@ethersproject/address@5.8.0":
   version "5.8.0"
   resolved "https://registry.npmjs.org/@ethersproject/address/-/address-5.8.0.tgz"
   integrity sha512-GhH/abcC46LJwshoN+uBNoKVFPxUuZm6dA257z0vZkKmU1+t8xTn8oK7B9qrj8W2rFRMch4gbJl6PmVxjxBEBA==
@@ -355,6 +355,24 @@
     "@ethersproject/logger" "^5.8.0"
     "@ethersproject/properties" "^5.8.0"
     "@ethersproject/strings" "^5.8.0"
+
+"@hyperswap-labs/addresses@latest":
+  version "1.0.17"
+  resolved "https://registry.npmjs.org/@hyperswap-labs/addresses/-/addresses-1.0.17.tgz"
+  integrity sha512-tnWRrsk6uogchiZ6aX1ewKTK7dEkg2DGYUjmvrVB3mqXT8Icimd14266//lriXllYa0TYP08lqpOZL8/11D5tA==
+
+"@hyperswap-labs/sdk-core@^1.0.12":
+  version "1.0.12"
+  resolved "https://registry.npmjs.org/@hyperswap-labs/sdk-core/-/sdk-core-1.0.12.tgz"
+  integrity sha512-U0yqfEGHuosk2QsI+yn0I1TAXDhg7vLLeoPRrksgW+gtAi9eMBfNBfbvb+FHSjN7BGZYDoVsbe8xBWfusTlhPw==
+  dependencies:
+    "@ethersproject/address" "^5.7.0"
+    "@hyperswap-labs/addresses" latest
+    big.js "^6.2.1"
+    decimal.js-light "^2.5.1"
+    jsbi "^4.3.0"
+    tiny-invariant "^1.2.0"
+    toformat "^2.0.0"
 
 "@jridgewell/resolve-uri@^3.0.3":
   version "3.1.2"
@@ -658,6 +676,11 @@ big.js@^5.2.2:
   resolved "https://registry.npmjs.org/big.js/-/big.js-5.2.2.tgz"
   integrity sha512-vyL2OymJxmarO8gxMr0mhChsO9QGwhynfuu4+MHTAW6czfq9humCB7rKpUjDd9YUiDPU4mzpyupFSvOClAwbmQ==
 
+big.js@^6.2.1:
+  version "6.2.2"
+  resolved "https://registry.npmjs.org/big.js/-/big.js-6.2.2.tgz"
+  integrity sha512-y/ie+Faknx7sZA5MfGA2xKlu0GDv8RWrXGsmlteyJQ2lvoKv9GBK/fpRMc2qlSoBAgNxrixICFCBefIq8WCQpQ==
+
 binary-extensions@^2.0.0:
   version "2.3.0"
   resolved "https://registry.npmjs.org/binary-extensions/-/binary-extensions-2.3.0.tgz"
@@ -864,7 +887,7 @@ debug@^4.3.1, debug@^4.3.5, debug@^4.4.0:
   dependencies:
     ms "^2.1.3"
 
-decimal.js-light@^2.5.0:
+decimal.js-light@^2.5.0, decimal.js-light@^2.5.1:
   version "2.5.1"
   resolved "https://registry.npmjs.org/decimal.js-light/-/decimal.js-light-2.5.1.tgz"
   integrity sha512-qIMFpTMZmny+MMIitAB6D7iVPEorVw6YQRWkvarTkT4tBeSLLiHzcwj6q0MmYSFCiVpiqPJTJEYIrpcPzVEIvg==
@@ -1332,6 +1355,11 @@ jsbi@^3.1.4:
   resolved "https://registry.npmjs.org/jsbi/-/jsbi-3.2.5.tgz"
   integrity sha512-aBE4n43IPvjaddScbvWRA2YlTzKEynHzu7MqOyTipdHucf/VxS63ViCjxYRg86M8Rxwbt/GfzHl1kKERkt45fQ==
 
+jsbi@^4.3.0:
+  version "4.3.2"
+  resolved "https://registry.npmjs.org/jsbi/-/jsbi-4.3.2.tgz"
+  integrity sha512-9fqMSQbhJykSeii05nxKl4m6Eqn2P6rOlYiS+C5Dr/HPIU/7yZxu5qzbs40tgaFORiw2Amd0mirjxatXYMkIew==
+
 jsonfile@^4.0.0:
   version "4.0.0"
   resolved "https://registry.npmjs.org/jsonfile/-/jsonfile-4.0.0.tgz"
@@ -1717,7 +1745,7 @@ table-layout@^1.0.2:
     typical "^5.2.0"
     wordwrapjs "^4.0.0"
 
-tiny-invariant@^1.1.0:
+tiny-invariant@^1.1.0, tiny-invariant@^1.2.0:
   version "1.3.3"
   resolved "https://registry.npmjs.org/tiny-invariant/-/tiny-invariant-1.3.3.tgz"
   integrity sha512-+FbBPE1o9QAYvviau/qC5SE3caw21q3xkvWKBtja5vgqOWIHHJ3ioaq1VPfn/Szqctz2bU/oYeKd9/z5BL+PVg==

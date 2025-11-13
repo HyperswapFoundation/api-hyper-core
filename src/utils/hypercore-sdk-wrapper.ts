@@ -1,11 +1,15 @@
 import { Hyperliquid, SpotToken } from "hyperliquid";
 import { signalOrderFailed, signalOrderFilled } from "./signals";
-import { encodeAndSendCoreAction, getERC20DepositTxData } from "./hypercore";
+import { calculatePrice, encodeAndSendCoreAction, getERC20DepositTxData, toTruncated } from "./hypercore";
 import { BigNumber, Wallet } from "ethers";
+import { formatUnits } from "ethers/lib/utils";
+import { Percent } from "@hyperswap-labs/sdk-core";
 
 const apiPrivateKey = process.env.API_PRIVATE_KEY!;
 const apiWallet = process.env.API_WALLET_ADDRESS!;
 const SPOT_POSTFIX = "-SPOT";
+export const allowedPriceSlippage = new Percent(50, 10_000)
+
 
 function getSDK() {
   return new Hyperliquid({
@@ -63,43 +67,21 @@ async function delegateFundsToHyperCore(
 
 }
 
-async function placeLimitOrderToUsd(
-  inputToken: SpotTokenExtended,
-  inputAmountRaw: string
-) {
-  const sdk = getSDK();
-  const market = `${inputToken.coin}-USD`;
-  const price = inputToken.midPrice!;
-  const limitPrice = price * 0.99; // slight discount to ensure fill
-
-  console.log(`Placing SELL ${inputToken.name} → USD @ ${limitPrice}`);
-
-  return sdk.exchange.placeOrder({
-    coin: inputToken.coin,
-    is_buy: false,
-    limit_px: limitPrice,
-    order_type: { limit: { tif: 'Ioc' } },
-    reduce_only: false,
-    sz: parseFloat(inputAmountRaw),
-    cloid: `${market}-TO-USD-${Date.now()}`,
-  });
-}
-
-async function placeLimitOrderToOutput(
+async function placeLimitOrder(
   outputToken: SpotTokenExtended,
-  minOutputAmountRaw: string
+  isBuy: boolean,
+  limitPrice: number,
+  orderSize: number,
 ) {
   const sdk = getSDK();
   const market = `${outputToken.coin}-USD`;
-  const price = outputToken.midPrice!;
-  const limitPrice = price * 1.01; // slight premium to ensure buy
 
   console.log(`Placing BUY USD → ${outputToken.name} @ ${limitPrice}`);
   return sdk.exchange.placeOrder({
     coin: outputToken.coin,
-    is_buy: true,
+    is_buy: isBuy,
     limit_px: limitPrice,
-    sz: parseFloat(minOutputAmountRaw),
+    sz: orderSize,
     cloid: `USD-TO-${market}-${Date.now()}`,
     order_type: { limit: { tif: 'Ioc' } },
     reduce_only: false,
@@ -151,8 +133,10 @@ export async function swapHypercore(
   orderId: string,
   inputToken: SpotTokenExtended,
   inputAmountRaw: string,
+  inputTokenEvmDecimals: number,
   outputToken: SpotTokenExtended,
   minOutputAmountRaw: string,
+  outputTokenEvmDecimals: number,
   fillerAddress: string,
   apiWallet: Wallet
 ) {
@@ -169,12 +153,27 @@ export async function swapHypercore(
     await delegateFundsToHyperCore(orderId, inputToken, inputAmountRaw, apiWallet);
     swapState = SwapState.Delegated;
 
+    const amountInHuman = formatUnits(inputAmountRaw, inputTokenEvmDecimals)
+    const inputFormatted = toTruncated(Number(amountInHuman), inputToken.szDecimals)
+
+    //Note: its okay to use slippage on the price since the min out will be enforced in the SZ
+    const inPriceLimit = calculatePrice(inputToken.midPrice, allowedPriceSlippage, inputToken.szDecimals, /*isBuy:*/ false) 
+    const outPriceLimit = calculatePrice(outputToken.midPrice, allowedPriceSlippage, outputToken.szDecimals, /*isBuy:*/ true)
+    //toTruncated(applySlippageToPrice(outputSpotInfo.midPrice, allowedSlippage, /*isBuy:*/ true), calculatPriceDecimals(outputSpotInfo.szDecimals));
+    const minOut = (Number(minOutputAmountRaw) * inPriceLimit) / outPriceLimit
+    const outputAmountCoreFormatted = Number(toTruncated(minOut, outputToken.szDecimals))
+
+    const inputAmountScaled = BigNumber.from(Math.round(inputFormatted * 1e8));
+    const outputAmountCoreScaled = BigNumber.from(Math.round(outputAmountCoreFormatted * 1e8))
+    const inPriceLimitScaled = BigNumber.from(Math.round(inPriceLimit * 1e8));
+    const outPriceLimitScaled = BigNumber.from(Math.round(outPriceLimit * 1e8));
+
     // 2️⃣ Sell input → USD
-    amountUsd = await placeLimitOrderToUsd(inputToken, inputAmountRaw);
+    amountUsd = await placeLimitOrder(inputToken, false, inPriceLimitScaled.toNumber(), inputAmountScaled.toNumber());
     swapState = SwapState.OrderPlacedUSD;
 
     // 3️⃣ Buy USD → output
-    await placeLimitOrderToOutput(outputToken, minOutputAmountRaw);
+    await placeLimitOrder(outputToken, true, outPriceLimitScaled.toNumber(), outputAmountCoreScaled.toNumber());
     swapState = SwapState.OrderPlacedOutput;
 
     // 4️⃣ Withdraw back to filler

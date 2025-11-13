@@ -1,9 +1,14 @@
 import { BigNumber, ethers } from "ethers";
 import ERC20_ABI  from "../abis/ERC20_ABI.json";
-import { getAddress, Interface } from "ethers/lib/utils";
+import { defaultAbiCoder, formatUnits, getAddress, hexlify, hexZeroPad, Interface } from "ethers/lib/utils";
+import { CurrencyAmount, Percent } from "@hyperswap-labs/sdk-core";
 
 export const HYPE_SYSTEM_ADDRESS = "0x2222222222222222222222222222222222222222";
 export const CORE_WRITER_ADDRESS = "0x3333333333333333333333333333333333333333";
+export const ACTION_ID_SPOT_SEND = 6;
+export const ACTION_ID_LIMIT_ORDER = 1;
+export const MAX_PRICE_DECIMALS = 8
+export const MAX_SPOT_SIG_FIGS = 5;
 
 export interface TxData {
     to: string;
@@ -110,3 +115,74 @@ export function getSystemAddress(tokenIndex: BigNumber, isHype: boolean): string
     return getAddress(address);
 }
 
+export function encodeCoreAction(actionId: number, types: string[], values: any[]): string {
+    const version = "0x01";
+    const actionIdHex = hexZeroPad(hexlify(actionId), 3); // 3-byte big-endian
+    const payload = defaultAbiCoder.encode(types, values);
+    return version + actionIdHex.slice(2) + payload.slice(2);
+}
+
+export function getWithdrawTxData(
+  from: string,
+  amountRaw: BigNumber,
+  tokenIndex: BigNumber,
+  isHype: boolean
+): TxData {
+  const address = getSystemAddress(tokenIndex, isHype);
+
+  // Encode the inner action first
+  const rawAction = encodeCoreAction(
+    ACTION_ID_SPOT_SEND,
+    ["address", "uint64", "uint64"],
+    [address, tokenIndex, amountRaw]
+  );
+
+  // Encode the outer CoreWriter.sendRawAction(rawAction)
+  const iface = new Interface(CORE_WRITER_ABI);
+  const data = iface.encodeFunctionData("sendRawAction", [rawAction]);
+
+  return {
+    to: CORE_WRITER_ADDRESS,
+    from,
+    data,
+    value: "0x0"
+  };
+}
+
+export function applySlippageToPrice(
+    midPrice: number,
+    allowedSlippage: Percent,
+    isBuy: boolean
+  ): number {
+    const s =
+      Number(allowedSlippage.numerator.toString()) /
+      Number(allowedSlippage.denominator.toString());
+  
+    // Calculate adjusted price
+    const factor = isBuy ? 1 + s : 1 - s;
+    const adjusted = midPrice * factor;
+  
+    // Match original decimal precision
+    const decimals = (midPrice.toString().split('.')[1] || '').length;
+    return Number(adjusted.toFixed(decimals));
+  }
+  
+
+export function calculatePrice(midPrice: number, allowedSlippage: Percent, szDecimals: number, isBuy: boolean) {
+    const priceAfterSlippageNum = applySlippageToPrice(midPrice, allowedSlippage, isBuy)
+    const priceDecimals = Math.max(MAX_PRICE_DECIMALS - szDecimals, 0)
+      // 3. Truncate to allowed decimals
+    const truncated = Math.floor(priceAfterSlippageNum * 10 ** priceDecimals) / 10 ** priceDecimals
+
+    // 4. Enforce 5 significant figures
+    const magnitude = Math.floor(Math.log10(Math.abs(truncated))) + 1
+    const decimalsAllowed = Math.max(MAX_SPOT_SIG_FIGS - magnitude, 0)
+    const sigFigAdjusted = Number(truncated.toFixed(Math.min(decimalsAllowed, priceDecimals)))
+
+    return sigFigAdjusted
+}
+
+export function toTruncated(num: number, decimals: number) {
+  const factor = Math.pow(10, decimals);
+  return Math.trunc(num * factor) / factor;
+}

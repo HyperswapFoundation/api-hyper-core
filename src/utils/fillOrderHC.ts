@@ -8,7 +8,9 @@ export async function fillOrderHC(
   signer: Wallet,
   order: DutchOrder,
   tokenInAddress: string,
+  inputTokenDecimals: number,
   tokenOutAddress: string,
+  outputTokenDecimals: number,
   signature: string,
 ) {
 
