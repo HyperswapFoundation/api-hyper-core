@@ -1,7 +1,7 @@
 import { Hyperliquid, SpotToken } from "hyperliquid";
 import { signalOrderFailed, signalOrderFilled } from "./signals";
-import { encodeAndSendCoreAction } from "./hypercore";
-import { Wallet } from "ethers";
+import { encodeAndSendCoreAction, getERC20DepositTxData } from "./hypercore";
+import { BigNumber, Wallet } from "ethers";
 
 const apiPrivateKey = process.env.API_PRIVATE_KEY!;
 const apiWallet = process.env.API_WALLET_ADDRESS!;
@@ -42,19 +42,25 @@ async function delegateFundsToHyperCore(
   orderId: string,
   inputToken: SpotTokenExtended,
   inputAmountRaw: string,
-  fillerAddress: string
+  signer: Wallet
 ) {
+  const fillerAddress = await signer.getAddress();
   console.log(
     `[${orderId}] Delegating ${inputAmountRaw} ${inputToken.name} to ${fillerAddress}`
   );
 
-  await encodeAndSendCoreAction({
-    actionId: 6, // Spot send
-    from: apiWallet,
-    to: fillerAddress,
-    tokenIndex: inputToken.assetId,
-    amount: inputAmountRaw,
-  });
+  const txData = getERC20DepositTxData(fillerAddress, inputAmountRaw, BigNumber.from(inputToken.index), inputToken.evmContract!.address)
+  const gasEstimate = await signer.estimateGas({
+    to: txData.to,
+    from: txData.from ?? fillerAddress,
+    data: txData.data,
+    value: txData.value,
+  })
+
+  const gasLimit = gasEstimate.mul(110).div(100)
+  const tx = await signer.sendTransaction({ ...txData, gasLimit })
+  await tx.wait()
+
 }
 
 async function placeLimitOrderToUsd(
@@ -158,12 +164,9 @@ export async function swapHypercore(
     return;
   }
 
-  //TODO: DELETE THIS just testing the settle
-  await signalOrderFilled(orderId, outputToken.evmContract?.address, minOutputAmountRaw, apiWallet);
-
   try {
     // 1️⃣ Delegate funds
-    await delegateFundsToHyperCore(orderId, inputToken, inputAmountRaw, fillerAddress);
+    await delegateFundsToHyperCore(orderId, inputToken, inputAmountRaw, apiWallet);
     swapState = SwapState.Delegated;
 
     // 2️⃣ Sell input → USD

@@ -1,7 +1,17 @@
-import { ethers } from "ethers";
+import { BigNumber, ethers } from "ethers";
+import ERC20_ABI  from "../abis/ERC20_ABI.json";
+import { getAddress, Interface } from "ethers/lib/utils";
 
-// CoreWriter contract address for Hyperliquid
-const CORE_WRITER_ADDRESS = "0x3333333333333333333333333333333333333333";
+export const HYPE_SYSTEM_ADDRESS = "0x2222222222222222222222222222222222222222";
+export const CORE_WRITER_ADDRESS = "0x3333333333333333333333333333333333333333";
+
+export interface TxData {
+    to: string;
+    from: string;
+    data: string;
+    value: string;
+}
+
 
 // ABI fragment for encode+send (only what’s needed)
 const CORE_WRITER_ABI = [
@@ -57,3 +67,46 @@ export async function encodeAndSendCoreAction(params: {
   console.log(`[HyperCore] Tx hash: ${receipt.transactionHash}`);
   return receipt;
 }
+
+export function getERC20DepositTxData(
+    from: string,
+    amountRaw: string,
+    tokenIndex: BigNumber,
+    tokenContract: string
+  ): TxData {
+    const amount = BigNumber.from(amountRaw);
+    const destination = getSystemAddress(tokenIndex, false);
+  
+    const iface = new Interface(ERC20_ABI);
+    const data = iface.encodeFunctionData("transfer", [destination, amount]);
+  
+    return {
+      to: tokenContract,
+      from,
+      data,
+      value: "0x0"
+    };
+  }
+
+export function getSystemAddress(tokenIndex: BigNumber, isHype: boolean): string {
+    if (isHype) {
+      return HYPE_SYSTEM_ADDRESS;
+    }
+  
+    // Convert tokenIndex to hex without '0x' prefix
+    const indexHex = tokenIndex.toHexString().slice(2);
+  
+    // Ensure the token index is no longer than 38 hex characters (19 bytes)
+    if (indexHex.length > 38) {
+      throw new Error("tokenIndex too large");
+    }
+  
+    // Total address length is 40 chars after '0x':
+    // prefix '20' (2 chars) + padding zeros + token index
+    const paddingZeros = "0".repeat(38 - indexHex.length);
+  
+    const address = `0x20${paddingZeros}${indexHex}`;
+  
+    return getAddress(address);
+}
+
