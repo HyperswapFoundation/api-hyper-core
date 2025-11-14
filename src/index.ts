@@ -100,7 +100,9 @@ app.post('/fill-order-hc', async (req, res) => {
       signer,
       parsed.dutchOrder,
       parsed.tokenInAddress,
+      parsed.tokenInDecimals,
       parsed.tokenOutAddress,
+      parsed.tokenOutDecimals,
       parsed.signature
     )
 

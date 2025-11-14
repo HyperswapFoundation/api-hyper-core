@@ -16,7 +16,9 @@ export function parseFillOrderRequest(body: unknown): ParsedFillOrder {
     signature,
     orderRoute,
     tokenInAddress,
+    tokenInDecimals,
     tokenOutAddress,
+    tokenOutDecimals,
     account,
   } = order
 
@@ -40,6 +42,8 @@ export function parseFillOrderRequest(body: unknown): ParsedFillOrder {
     // Normalize to canonical names internally
     tokenInAddress: tokenInAddress,
     tokenOutAddress: tokenOutAddress,
+    tokenInDecimals,
+    tokenOutDecimals,
     account,
     chainId,
   }

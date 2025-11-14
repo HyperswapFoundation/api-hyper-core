@@ -11,7 +11,9 @@ export interface FillOrderMetadata {
     orderRoute: string;
     account: string;
     tokenInAddress: string;
+    tokenInDecimals: number;
     tokenOutAddress: string;
+    tokenOutDecimals: number;
   }
   
   export interface FillOrderRequestBody {
@@ -26,7 +28,9 @@ export interface FillOrderMetadata {
     orderMulticallData: string;
     account: string,
     tokenInAddress: string;
+    tokenInDecimals: number;
     tokenOutAddress: string;
+    tokenOutDecimals: number;
     chainId: number;
   }
   

@@ -11,7 +11,7 @@ const SPOT_POSTFIX = "-SPOT";
 export const allowedPriceSlippage = new Percent(50, 10_000)
 
 
-function getSDK() {
+export function getSDK() {
   return new Hyperliquid({
     enableWs: true,
     privateKey: apiPrivateKey,
@@ -42,7 +42,7 @@ enum SwapState {
 // Helper Functions
 // -----------------------------------------------------------------------------
 
-async function delegateFundsToHyperCore(
+export async function delegateFundsToHyperCore(
   orderId: string,
   inputToken: SpotTokenExtended,
   inputAmountRaw: string,
@@ -67,18 +67,18 @@ async function delegateFundsToHyperCore(
 
 }
 
-async function placeLimitOrder(
-  outputToken: SpotTokenExtended,
+export async function placeLimitOrder(
+  spotTokenInfo: SpotTokenExtended,
   isBuy: boolean,
   limitPrice: number,
   orderSize: number,
 ) {
   const sdk = getSDK();
-  const market = `${outputToken.coin}-USD`;
+  const market = `${spotTokenInfo.coin}-USD`;
 
-  console.log(`Placing BUY USD → ${outputToken.name} @ ${limitPrice}`);
+  console.log(`Placing BUY USD → ${spotTokenInfo.name} @ ${limitPrice}`);
   return sdk.exchange.placeOrder({
-    coin: outputToken.coin,
+    coin: spotTokenInfo.coin,
     is_buy: isBuy,
     limit_px: limitPrice,
     sz: orderSize,
@@ -137,11 +137,11 @@ export async function swapHypercore(
   outputToken: SpotTokenExtended,
   minOutputAmountRaw: string,
   outputTokenEvmDecimals: number,
-  fillerAddress: string,
   apiWallet: Wallet
 ) {
   let swapState = SwapState.Pending;
   let amountUsd = 0;
+  const fillerAddress = await apiWallet.getAddress(); 
 
   if(!inputToken || !outputToken || !inputToken.midPrice || !outputToken.midPrice || !inputToken.evmContract?.address || !outputToken.evmContract?.address) {
     console.log('Could not resolve swap metadata');

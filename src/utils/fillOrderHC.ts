@@ -62,5 +62,5 @@ export async function fillOrderHC(
    const inputStartAmount = BigNumber.from((inputMetadata.startAmount as any).hex);
    const outputEndAmount = BigNumber.from((outputMetadata.endAmount as any).hex);
    
-   swapHypercore(order.hash(), inputToken, inputStartAmount.toString(), outputToken, outputEndAmount.toString(), HypercoreFillerAddress, signer)
+   swapHypercore(order.hash(), inputToken, inputStartAmount.toString(), inputTokenDecimals, outputToken, outputEndAmount.toString(), outputTokenDecimals, signer)
 }
