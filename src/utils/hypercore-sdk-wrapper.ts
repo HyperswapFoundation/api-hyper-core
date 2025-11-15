@@ -1,6 +1,6 @@
 import { Hyperliquid, SpotToken } from "hyperliquid";
 import { signalOrderFailed, signalOrderFilled } from "./signals";
-import { calculatePrice, encodeAndSendCoreAction, getERC20DepositTxData, toTruncated } from "./hypercore";
+import { calculatePrice, encodeAndSendCoreAction, getERC20DepositTxData, getSystemAddress, toTruncated } from "./hypercore";
 import { BigNumber, Wallet } from "ethers";
 import { formatUnits } from "ethers/lib/utils";
 import { Percent } from "@hyperswap-labs/sdk-core";
@@ -85,6 +85,43 @@ export async function placeLimitOrder(
     reduce_only: false,
   });
 }
+
+export async function spotWithdrawal(sdk: Hyperliquid, spotTokenInfo: SpotTokenExtended, orderSize: number) {
+  const recipient = getSystemAddress(BigNumber.from(spotTokenInfo.index), false)
+  const tokenSymbol = spotTokenInfo.coin.replace(/-SPOT$/, "");
+  const tokenFormat = `${spotTokenInfo.name}:${spotTokenInfo.tokenId}`
+  // const tokenFormat = `${tokenSymbol}:${spotTokenInfo.evmContract!.address}`
+  const withdrawalAmount = formatWithdrawalSize(orderSize, spotTokenInfo.weiDecimals)
+
+  return sdk.exchange
+    .spotTransfer(
+      recipient,
+      tokenFormat,
+      withdrawalAmount
+  )
+}
+
+export function formatWithdrawalSize(
+  orderSize: number,
+  weiDecimals: number
+): string {
+  if (!isFinite(orderSize)) return String(orderSize);
+
+  const scale = Math.pow(10, weiDecimals);
+
+  // Truncate toward zero
+  const truncated = Math.trunc(orderSize * scale) / scale;
+
+  // Convert to string with max decimals allowed
+  let s = truncated.toFixed(weiDecimals);
+
+  // Trim trailing zeros
+  s = s.replace(/\.?0+$/, "");
+
+  return s;
+}
+
+
 
 async function placeLimitOrderToInput(inputToken: SpotTokenExtended, priceLimit: string, amountUsd: number) {
   const sdk = getSDK();

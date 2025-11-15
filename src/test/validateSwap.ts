@@ -1,5 +1,5 @@
 import { Wallet, providers } from "ethers";
-import { delegateFundsToHyperCore, getSDK, getSpotInfos, placeLimitOrder, SpotTokenExtended } from "../utils/hypercore-sdk-wrapper";
+import { delegateFundsToHyperCore, getSDK, getSpotInfos, placeLimitOrder, SpotTokenExtended, spotWithdrawal } from "../utils/hypercore-sdk-wrapper";
 import * as dotenv from 'dotenv'
 import { formatUnits } from "ethers/lib/utils";
 import { MAX_PRICE_DECIMALS, MAX_SPOT_SIG_FIGS } from "../utils/hypercore";
@@ -15,7 +15,7 @@ const inputTokenDecimals = 18;
 const outputTokenAddress = "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb"
 const outputTokenDecimals = 6
 const inputAmountRaw = "150000000000000000000" //150
-const ouputAmountRaw = "14560000" //14.26
+const ouputAmountRaw = "14550000" //14.26
 const orderId = "TEST_ORDER";
 const provider = new providers.JsonRpcProvider(RPC_URL, CHAIN_ID)
 const signer =  new Wallet(pk, provider)
@@ -31,19 +31,22 @@ export async function validateSwapWorks() {
       return;
     }
     
-    //await delegateFundsToHyperCore(orderId, inputToken, inputAmountRaw, signer);
+    await delegateFundsToHyperCore(orderId, inputToken, inputAmountRaw, signer);
 
-    // const inputIsBuy = false
-    // const inputPriceLimit = calculatePriceWithSlippage(inputToken, defaultSlippage, inputIsBuy)
-    // const inputSize = calculateSize(inputAmountRaw, inputIsBuy, inputTokenDecimals, inputToken.szDecimals)
-    // const sellResponse = await placeLimitOrder(sdk, inputToken, inputIsBuy, inputPriceLimit, inputSize)
-    // console.log(JSON.stringify(sellResponse));
+    const inputIsBuy = false
+    const inputPriceLimit = calculatePriceWithSlippage(inputToken, defaultSlippage, inputIsBuy)
+    const inputSize = calculateSize(inputAmountRaw, inputIsBuy, inputTokenDecimals, inputToken.szDecimals)
+    const sellResponse = await placeLimitOrder(sdk, inputToken, inputIsBuy, inputPriceLimit, inputSize)
+    console.log(JSON.stringify(sellResponse));
 
     const outputIsBuy = true;
     const outputPriceLimit = calculatePriceWithSlippage(outputToken, defaultSlippage, outputIsBuy)
     const outputSize = calculateSize(ouputAmountRaw, outputIsBuy, outputTokenDecimals, outputToken.szDecimals)
     const buyResponse = await placeLimitOrder(sdk, outputToken, outputIsBuy, outputPriceLimit, outputSize);
     console.log(JSON.stringify(buyResponse));
+
+    const withdrawResponse = await spotWithdrawal(sdk, outputToken, outputSize)
+    console.log(JSON.stringify(withdrawResponse));
 } 
 
 function getMaxSpotSigFigs(spotTokenInfo: SpotTokenExtended) {
