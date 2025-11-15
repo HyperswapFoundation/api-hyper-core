@@ -1,10 +1,11 @@
 import { Hyperliquid, SpotToken } from "hyperliquid";
 import { signalOrderFailed, signalOrderFilled } from "./signals";
-import { calculatePrice, encodeAndSendCoreAction, getERC20DepositTxData, getSystemAddress, toTruncated } from "./hypercore";
+import { getERC20DepositTxData, getSystemAddress, MAX_PRICE_DECIMALS, MAX_SPOT_SIG_FIGS } from "./hypercore";
 import { BigNumber, Wallet } from "ethers";
 import { formatUnits } from "ethers/lib/utils";
 import { Percent } from "@hyperswap-labs/sdk-core";
 
+const defaultSlippage = .005;
 const apiPrivateKey = process.env.API_PRIVATE_KEY!;
 const apiWallet = process.env.API_WALLET_ADDRESS!;
 const SPOT_POSTFIX = "-SPOT";
@@ -140,26 +141,6 @@ async function placeLimitOrderToInput(inputToken: SpotTokenExtended, priceLimit:
   });
 }
 
-async function withdrawFundsToFiller(
-  outputToken: SpotTokenExtended,
-  amountRaw: string,
-  fillerAddress: string
-) {
-  console.log(
-    `Withdrawing ${amountRaw} ${outputToken.name} to filler ${fillerAddress}`
-  );
-
-  await encodeAndSendCoreAction({
-    actionId: 6, // Spot send
-    from: apiWallet,
-    to: fillerAddress,
-    tokenIndex: outputToken.assetId,
-    amount: amountRaw,
-  });
-
-  return amountRaw;
-}
-
 // -----------------------------------------------------------------------------
 // Main Swap Flow
 // -----------------------------------------------------------------------------
@@ -173,11 +154,10 @@ export async function swapHypercore(
   outputToken: SpotTokenExtended,
   minOutputAmountRaw: string,
   outputTokenEvmDecimals: number,
-  apiWallet: Wallet
+  signer: Wallet
 ) {
-  let swapState = SwapState.Pending;
+  let swapState:SwapState = SwapState.Pending;
   let amountUsd = 0;
-  const fillerAddress = await apiWallet.getAddress(); 
 
   if(!inputToken || !outputToken || !inputToken.midPrice || !outputToken.midPrice || !inputToken.evmContract?.address || !outputToken.evmContract?.address) {
     console.log('Could not resolve swap metadata');
@@ -185,43 +165,10 @@ export async function swapHypercore(
   }
 
   try {
-    // 1️⃣ Delegate funds
-    await delegateFundsToHyperCore(orderId, inputToken, inputAmountRaw, apiWallet);
-    swapState = SwapState.Delegated;
-
-    const amountInHuman = formatUnits(inputAmountRaw, inputTokenEvmDecimals)
-    const inputFormatted = toTruncated(Number(amountInHuman), inputToken.szDecimals)
-
-    //Note: its okay to use slippage on the price since the min out will be enforced in the SZ
-    const inPriceLimit = calculatePrice(inputToken.midPrice, allowedPriceSlippage, inputToken.szDecimals, /*isBuy:*/ false) 
-    const outPriceLimit = calculatePrice(outputToken.midPrice, allowedPriceSlippage, outputToken.szDecimals, /*isBuy:*/ true)
-    //toTruncated(applySlippageToPrice(outputSpotInfo.midPrice, allowedSlippage, /*isBuy:*/ true), calculatPriceDecimals(outputSpotInfo.szDecimals));
-    const minOut = (Number(minOutputAmountRaw) * inPriceLimit) / outPriceLimit
-    const outputAmountCoreFormatted = Number(toTruncated(minOut, outputToken.szDecimals))
-
-    const inputAmountScaled = BigNumber.from(Math.round(inputFormatted * 1e8));
-    const outputAmountCoreScaled = BigNumber.from(Math.round(outputAmountCoreFormatted * 1e8))
-    const inPriceLimitScaled = BigNumber.from(Math.round(inPriceLimit * 1e8));
-    const outPriceLimitScaled = BigNumber.from(Math.round(outPriceLimit * 1e8));
-
-    // 2️⃣ Sell input → USD
-    amountUsd = await placeLimitOrder(sdk, inputToken, false, inPriceLimitScaled.toNumber(), inputAmountScaled.toNumber());
-    swapState = SwapState.OrderPlacedUSD;
-
-    // 3️⃣ Buy USD → output
-    await placeLimitOrder(sdk, outputToken, true, outPriceLimitScaled.toNumber(), outputAmountCoreScaled.toNumber());
-    swapState = SwapState.OrderPlacedOutput;
-
-    // 4️⃣ Withdraw back to filler
-    const filledOutputAmount = await withdrawFundsToFiller(
-      outputToken,
-      minOutputAmountRaw,
-      fillerAddress
-    );
-    swapState = SwapState.WithdrawnToFiller;
+    swapState = await executeSwap(sdk, orderId, inputToken, inputAmountRaw, inputTokenEvmDecimals, outputToken, minOutputAmountRaw, outputTokenEvmDecimals, signer)
 
     // 5️⃣ Signal success
-    await signalOrderFilled(orderId, filledOutputAmount, minOutputAmountRaw, apiWallet);
+    await signalOrderFilled(orderId, outputToken.evmContract.address, minOutputAmountRaw, signer);
     swapState = SwapState.Completed;
 
     console.log(`[${orderId}] Swap completed successfully`);
@@ -237,7 +184,7 @@ export async function swapHypercore(
       }
 
       if (swapState === SwapState.Delegated) {
-        await signalOrderFailed(orderId, inputToken.evmContract?.address, returnedInputAmount, apiWallet);
+        await signalOrderFailed(orderId, inputToken.evmContract?.address, returnedInputAmount, signer);
       }
     } catch (rollbackEx) {
       console.error(`[${orderId}] Rollback failed:`, rollbackEx);
@@ -311,4 +258,133 @@ export async function getTokensWithContracts(sdk: Hyperliquid): Promise<{
     console.error("Failed to fetch data:", error);
     return { tokens: [], mergedTokens: [] };
   }
+}
+
+export async function executeSwap(sdk: Hyperliquid, orderId: string, 
+  inputToken: SpotTokenExtended, inputAmountRaw: string, inputTokenDecimals:number, 
+  outputToken: SpotTokenExtended, ouputAmountRaw: string, outputTokenDecimals: number,
+  signer: Wallet): Promise<SwapState> {
+    let swapState = SwapState.Pending;
+    if(!inputToken || !outputToken || !inputToken.midPrice || !outputToken.midPrice || !inputToken.evmContract?.address) {
+      console.log('Could not resolve swap metadata');
+      return swapState;
+    }
+    
+
+    await delegateFundsToHyperCore(orderId, inputToken, inputAmountRaw, signer);
+    swapState = SwapState.Delegated;
+
+    const inputIsBuy = false
+    const inputPriceLimit = calculatePriceWithSlippage(inputToken, defaultSlippage, inputIsBuy)
+    const inputSize = calculateSize(inputAmountRaw, inputIsBuy, inputTokenDecimals, inputToken.szDecimals)
+    const sellResponse = await placeLimitOrder(sdk, inputToken, inputIsBuy, inputPriceLimit, inputSize)
+    console.log(JSON.stringify(sellResponse));
+    swapState = SwapState.OrderPlacedUSD;
+
+
+    const outputIsBuy = true;
+    const outputPriceLimit = calculatePriceWithSlippage(outputToken, defaultSlippage, outputIsBuy)
+    const outputSize = calculateSize(ouputAmountRaw, outputIsBuy, outputTokenDecimals, outputToken.szDecimals)
+    const buyResponse = await placeLimitOrder(sdk, outputToken, outputIsBuy, outputPriceLimit, outputSize);
+    console.log(JSON.stringify(buyResponse));
+    swapState = SwapState.OrderPlacedOutput;
+
+    const withdrawResponse = await spotWithdrawal(sdk, outputToken, outputSize)
+    console.log(JSON.stringify(withdrawResponse));
+    swapState = SwapState.WithdrawnToFiller;
+
+    return swapState;
+}
+
+function getMaxSpotSigFigs(spotTokenInfo: SpotTokenExtended) {
+    return Math.min(MAX_SPOT_SIG_FIGS, MAX_PRICE_DECIMALS - spotTokenInfo.szDecimals) 
+}
+
+function calculatePriceWithSlippage(spotTokenInfo: SpotTokenExtended, slippage: number, isBuy: boolean) {
+    // slippage is decimal, e.g. 0.1 = 10%
+    const s = slippage;
+
+    // BUY → price goes UP (willing to pay more)
+    // SELL → price goes DOWN (willing to accept less)
+    const factor = isBuy ? (1 + s) : (1 - s);
+
+    const midPrice = spotTokenInfo.midPrice!;
+    const adjusted = midPrice * factor;
+
+    const maxSigFigs = getMaxSpotSigFigs(spotTokenInfo);
+    return formatPriceWithSigFigs(adjusted, maxSigFigs, isBuy)
+
+}
+
+export function formatPriceWithSigFigs(
+  price: number,
+  sigFigs: number,
+  isBuy: boolean
+): number {
+  if (!isFinite(price))  {
+    return price;
+  }
+
+  if (Number.isInteger(price)) {
+    return price;
+  }
+
+  const absPrice = Math.abs(price);
+
+  // Determine how many digits are in the integer part
+  // Example: price = 12345.1 → magnitude = 4 → integerDigits = 5
+  const magnitude = Math.floor(Math.log10(absPrice));
+  const integerDigits = magnitude + 1;
+
+  // If the integer part alone already meets or exceeds sig figs,
+  // no decimals are allowed — round to an integer.
+  if (integerDigits >= sigFigs) {
+    return isBuy ? Math.ceil(price) : Math.floor(price);
+  }
+
+  const decimalsAllowed = sigFigs - integerDigits;
+  const scale = Math.pow(10, decimalsAllowed);
+
+  let adjusted: number;
+  if (isBuy) {
+    // BUY = round UP (ceil)
+    adjusted = Math.ceil(price * scale) / scale;
+  } else {
+    // SELL = round DOWN (floor)
+    adjusted = Math.floor(price * scale) / scale;
+  }
+
+  // Ensure proper number of decimal places (no scientific notation)
+  return Number(adjusted.toFixed(decimalsAllowed));
+}
+
+
+export function calculateSize(
+  rawAmount: string,
+  isBuy: boolean,
+  tokenDecimals: number,
+  szDecimals: number
+): number {
+  // Convert raw amount into human-readable float
+  const human = Number(formatUnits(rawAmount, tokenDecimals));
+
+  // If no decimals allowed at all
+  if (szDecimals === 0) {
+    return isBuy ? Math.ceil(human) : Math.floor(human);
+  }
+
+  // Determine scaling for allowed decimals
+  const scale = Math.pow(10, szDecimals);
+
+  let adjusted: number;
+  if (isBuy) {
+    // BUY = round UP
+    adjusted = Math.ceil(human * scale) / scale;
+  } else {
+    // SELL = round DOWN
+    adjusted = Math.floor(human * scale) / scale;
+  }
+
+  // Ensure output has correct decimal precision
+  return Number(adjusted.toFixed(szDecimals));
 }
