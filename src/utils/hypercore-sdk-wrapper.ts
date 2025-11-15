@@ -77,7 +77,7 @@ export async function placeLimitOrder(
 ) {
 
   console.log(`Placing BUY USD → ${spotTokenInfo.name} @ ${limitPrice}`);
-  return sdk.exchange.placeOrder({
+  const response = await sdk.exchange.placeOrder({
     coin: spotTokenInfo.coin,
     is_buy: isBuy,
     limit_px: limitPrice,
@@ -85,21 +85,35 @@ export async function placeLimitOrder(
     order_type: { limit: { tif: 'Ioc' } },
     reduce_only: false,
   });
+
+  processResponse(response)
+
+  return response;
 }
 
-export async function spotWithdrawal(sdk: Hyperliquid, spotTokenInfo: SpotTokenExtended, orderSize: number) {
-  const recipient = getSystemAddress(BigNumber.from(spotTokenInfo.index), false)
-  const tokenSymbol = spotTokenInfo.coin.replace(/-SPOT$/, "");
-  const tokenFormat = `${spotTokenInfo.name}:${spotTokenInfo.tokenId}`
-  // const tokenFormat = `${tokenSymbol}:${spotTokenInfo.evmContract!.address}`
-  const withdrawalAmount = formatWithdrawalSize(orderSize, spotTokenInfo.weiDecimals)
+export async function inputSpotWithdrawal(sdk: Hyperliquid, spotTokenInfo: SpotTokenExtended, withdrawalAmount: string) {
+  return spotWithdrawImpl(sdk, spotTokenInfo, withdrawalAmount)
+}
 
-  return sdk.exchange
+
+export async function spotWithdrawal(sdk: Hyperliquid, spotTokenInfo: SpotTokenExtended, orderSize: number) {
+  const withdrawalAmount = formatWithdrawalSize(orderSize, spotTokenInfo.weiDecimals)
+  return spotWithdrawImpl(sdk, spotTokenInfo, withdrawalAmount)
+}
+
+async function spotWithdrawImpl(sdk: Hyperliquid, spotTokenInfo: SpotTokenExtended, withdrawalAmount: string) {
+    const recipient = getSystemAddress(BigNumber.from(spotTokenInfo.index), false)
+  const tokenFormat = `${spotTokenInfo.name}:${spotTokenInfo.tokenId}`
+
+  const response = await sdk.exchange
     .spotTransfer(
       recipient,
       tokenFormat,
       withdrawalAmount
   )
+
+  processResponse(response);
+  return response
 }
 
 export function formatWithdrawalSize(
@@ -269,32 +283,97 @@ export async function executeSwap(sdk: Hyperliquid, orderId: string,
       console.log('Could not resolve swap metadata');
       return swapState;
     }
-    
 
     await delegateFundsToHyperCore(orderId, inputToken, inputAmountRaw, signer);
     swapState = SwapState.Delegated;
 
-    const inputIsBuy = false
-    const inputPriceLimit = calculatePriceWithSlippage(inputToken, defaultSlippage, inputIsBuy)
-    const inputSize = calculateSize(inputAmountRaw, inputIsBuy, inputTokenDecimals, inputToken.szDecimals)
-    const sellResponse = await placeLimitOrder(sdk, inputToken, inputIsBuy, inputPriceLimit, inputSize)
-    console.log(JSON.stringify(sellResponse));
-    swapState = SwapState.OrderPlacedUSD;
+    try {
+      const inputIsBuy = false
+      const inputPriceLimit = calculatePriceWithSlippage(inputToken, defaultSlippage, inputIsBuy)
+      const inputSize = calculateSize(inputAmountRaw, inputIsBuy, inputTokenDecimals, inputToken.szDecimals)
+      await placeLimitOrder(sdk, inputToken, inputIsBuy, inputPriceLimit, inputSize)
+      swapState = SwapState.OrderPlacedUSD;
 
+      const outputIsBuy = true;
+      const outputPriceLimit = calculatePriceWithSlippage(outputToken, defaultSlippage, outputIsBuy)
+      const outputSize = calculateSize(ouputAmountRaw, outputIsBuy, outputTokenDecimals, outputToken.szDecimals)
+      await placeLimitOrder(sdk, outputToken, outputIsBuy, outputPriceLimit, outputSize);
+      swapState = SwapState.OrderPlacedOutput;
 
-    const outputIsBuy = true;
-    const outputPriceLimit = calculatePriceWithSlippage(outputToken, defaultSlippage, outputIsBuy)
-    const outputSize = calculateSize(ouputAmountRaw, outputIsBuy, outputTokenDecimals, outputToken.szDecimals)
-    const buyResponse = await placeLimitOrder(sdk, outputToken, outputIsBuy, outputPriceLimit, outputSize);
-    console.log(JSON.stringify(buyResponse));
-    swapState = SwapState.OrderPlacedOutput;
+      await spotWithdrawal(sdk, outputToken, outputSize)
+      swapState = SwapState.WithdrawnToFiller;
 
-    const withdrawResponse = await spotWithdrawal(sdk, outputToken, outputSize)
-    console.log(JSON.stringify(withdrawResponse));
-    swapState = SwapState.WithdrawnToFiller;
+    } catch (error) {
+      processErrors(sdk, orderId, 
+          inputToken, inputAmountRaw, inputTokenDecimals, 
+          outputToken,  
+          swapState, signer);
+    }
 
     return swapState;
 }
+
+async function processErrors(sdk: Hyperliquid, 
+  orderId: string, 
+  inputToken: SpotTokenExtended, inputAmountRaw: string, inputTokenDecimals: number,
+  outputToken: SpotTokenExtended, swapState: SwapState, signer: Wallet) {
+  
+  try {
+    if(swapState == SwapState.Delegated) {
+
+      const withdrawalAmountFormatted = inputAmountRaw
+      await inputSpotWithdrawal(sdk, inputToken, withdrawalAmountFormatted)
+
+      const inputEvmAmount = convertHCToEvmAmount(withdrawalAmountFormatted, inputToken.weiDecimals, inputTokenDecimals)
+      await signalOrderFailed(orderId, inputToken.evmContract!.address, inputEvmAmount, signer);
+    }
+    if(swapState == SwapState.OrderPlacedUSD) {
+
+    }
+    if(swapState == SwapState.OrderPlacedOutput) {
+
+    }
+  } catch(error) {
+    throw new Error("Fatal: Could not reslove order")
+  }
+}
+
+function convertHCToEvmAmount(withdrawalAmountFormatted: string, weiDecimals: number, inputEvmDecimal:number): string {
+  throw new Error('Not Implemented')
+}
+
+interface ApiResponse<T = any> {
+  status: string;
+  response?: {
+    type?: string;
+    data?: {
+      statuses?: { error?: string }[];
+    };
+  };
+}
+
+/**
+ * Standardizes how API responses are checked and throws if any error is detected.
+ */
+export function processResponse<T = any>(resp: ApiResponse<T>): T {
+    console.log(JSON.stringify(resp));
+  // Check top-level status
+  if (resp.status !== "ok") {
+    throw new Error(`API status not ok: ${JSON.stringify(resp)}`);
+  }
+
+  // Check nested error messages
+  const error =
+    resp.response?.data?.statuses?.find((s) => s.error)?.error;
+
+  if (error) {
+    throw new Error(error);
+  }
+
+  // Return response data if everything’s fine
+  return resp.response as T;
+}
+
 
 function getMaxSpotSigFigs(spotTokenInfo: SpotTokenExtended) {
     return Math.min(MAX_SPOT_SIG_FIGS, MAX_PRICE_DECIMALS - spotTokenInfo.szDecimals) 
