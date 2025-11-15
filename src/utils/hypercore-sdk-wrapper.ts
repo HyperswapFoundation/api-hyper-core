@@ -11,11 +11,11 @@ const SPOT_POSTFIX = "-SPOT";
 export const allowedPriceSlippage = new Percent(50, 10_000)
 
 
-export function getSDK() {
+export function getSDK(pkOrDefault?: string) {
   return new Hyperliquid({
     enableWs: true,
-    privateKey: apiPrivateKey,
-    walletAddress: apiWallet, // only needed if this wallet is an API agent
+    privateKey: pkOrDefault ?? apiPrivateKey,
+    // walletAddress: apiWallet, // only needed if this wallet is an API agent
   });
 }
 
@@ -68,13 +68,12 @@ export async function delegateFundsToHyperCore(
 }
 
 export async function placeLimitOrder(
+  sdk: Hyperliquid,
   spotTokenInfo: SpotTokenExtended,
   isBuy: boolean,
   limitPrice: number,
   orderSize: number,
 ) {
-  const sdk = getSDK();
-  const market = `${spotTokenInfo.coin}-USD`;
 
   console.log(`Placing BUY USD → ${spotTokenInfo.name} @ ${limitPrice}`);
   return sdk.exchange.placeOrder({
@@ -82,7 +81,6 @@ export async function placeLimitOrder(
     is_buy: isBuy,
     limit_px: limitPrice,
     sz: orderSize,
-    cloid: `USD-TO-${market}-${Date.now()}`,
     order_type: { limit: { tif: 'Ioc' } },
     reduce_only: false,
   });
@@ -130,6 +128,7 @@ async function withdrawFundsToFiller(
 // -----------------------------------------------------------------------------
 
 export async function swapHypercore(
+  sdk: Hyperliquid,
   orderId: string,
   inputToken: SpotTokenExtended,
   inputAmountRaw: string,
@@ -169,11 +168,11 @@ export async function swapHypercore(
     const outPriceLimitScaled = BigNumber.from(Math.round(outPriceLimit * 1e8));
 
     // 2️⃣ Sell input → USD
-    amountUsd = await placeLimitOrder(inputToken, false, inPriceLimitScaled.toNumber(), inputAmountScaled.toNumber());
+    amountUsd = await placeLimitOrder(sdk, inputToken, false, inPriceLimitScaled.toNumber(), inputAmountScaled.toNumber());
     swapState = SwapState.OrderPlacedUSD;
 
     // 3️⃣ Buy USD → output
-    await placeLimitOrder(outputToken, true, outPriceLimitScaled.toNumber(), outputAmountCoreScaled.toNumber());
+    await placeLimitOrder(sdk, outputToken, true, outPriceLimitScaled.toNumber(), outputAmountCoreScaled.toNumber());
     swapState = SwapState.OrderPlacedOutput;
 
     // 4️⃣ Withdraw back to filler
@@ -211,8 +210,8 @@ export async function swapHypercore(
   }
 }
 
-export async function getSpotInfos(inputAddress: string, outputAddress: string) {
-   const tokenMetadata = await getTokensWithContracts();
+export async function getSpotInfos(sdk:Hyperliquid, inputAddress: string, outputAddress: string) {
+   const tokenMetadata = await getTokensWithContracts(sdk);
    const inputToken =  tokenMetadata.mergedTokens.find(x => x.evmContract?.address.toLowerCase() == inputAddress.toLowerCase())
    const outputToken =  tokenMetadata.mergedTokens.find(x => x.evmContract?.address.toLowerCase() == outputAddress.toLowerCase())
    return [inputToken, outputToken]
@@ -222,11 +221,10 @@ export async function getSpotInfos(inputAddress: string, outputAddress: string) 
 // Token Metadata Fetcher
 // -----------------------------------------------------------------------------
 
-export async function getTokensWithContracts(): Promise<{
+export async function getTokensWithContracts(sdk: Hyperliquid): Promise<{
   tokens: SpotTokenExtended[];
   mergedTokens: SpotTokenExtended[];
 }> {
-  const sdk = getSDK();
 
   try {
     const [tokenMeta, assetCtxs] = await sdk.info.spot.getSpotMetaAndAssetCtxs();

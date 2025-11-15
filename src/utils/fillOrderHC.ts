@@ -2,7 +2,7 @@ import { DutchOrder } from "@uniswap/uniswapx-sdk";
 import { HypercoreFillerAddress, SwapRouter02ExecutorAddress } from "../constants";
 import TRUSTED_FILLER_ABI from '../abis/TrustedFiller.json'
 import { BigNumber, Contract, utils, Wallet } from "ethers";
-import { getSpotInfos, swapHypercore } from "./hypercore-sdk-wrapper";
+import { getSDK, getSpotInfos, swapHypercore } from "./hypercore-sdk-wrapper";
 
 export async function fillOrderHC(
   signer: Wallet,
@@ -16,7 +16,8 @@ export async function fillOrderHC(
 
   const inputMetadata = order.info.input;
   const outputMetadata = order.info.outputs[0];
-  const [inputToken, outputToken] = await getSpotInfos(inputMetadata.token, outputMetadata.token);
+  const sdk = getSDK();
+  const [inputToken, outputToken] = await getSpotInfos(sdk, inputMetadata.token, outputMetadata.token);
 
   if(!inputToken || !outputToken || !inputToken.midPrice || !outputToken.midPrice || !inputToken.evmContract?.address) {
     console.log('Could not resolve swap metadata');
@@ -62,5 +63,5 @@ export async function fillOrderHC(
    const inputStartAmount = BigNumber.from((inputMetadata.startAmount as any).hex);
    const outputEndAmount = BigNumber.from((outputMetadata.endAmount as any).hex);
    
-   swapHypercore(order.hash(), inputToken, inputStartAmount.toString(), inputTokenDecimals, outputToken, outputEndAmount.toString(), outputTokenDecimals, signer)
+   swapHypercore(sdk, order.hash(), inputToken, inputStartAmount.toString(), inputTokenDecimals, outputToken, outputEndAmount.toString(), outputTokenDecimals, signer)
 }
