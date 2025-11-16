@@ -7,6 +7,7 @@ import { parseFillOrderRequest } from './utils/parseFillOrderRequest'
 import type { Request, Response, NextFunction } from 'express'
 import { SwapRouter02ExecutorAddress } from './constants'
 import { fillOrderHC } from './utils/fillOrderHC'
+import { getSDK } from './utils/hypercore-sdk-wrapper'
 
 dotenv.config()
 
@@ -30,7 +31,7 @@ if (pkList.length === 0) throw new Error('No private keys in SIGNER_PRIVATE_KEY_
 function getNextSigner() {
   const randomIndex = Math.floor(Math.random() * pkList.length)
   const pk = pkList[randomIndex]
-  return new ethers.Wallet(pk, provider)
+  return { wallet: new ethers.Wallet(pk, provider), pk }
 }
 
 // ---- Express App ----
@@ -61,6 +62,7 @@ app.get('/', (_req, res) => {
         <p>RPC URL: ${RPC_URL}</p>
         <p>Available endpoints:</p>
         <ul>
+          <li><strong>GET /quote</strong></li>
           <li><strong>POST /fill-order</strong></li>
           <li><strong>POST /fill-order-hc</strong></li>
         </ul>
@@ -70,11 +72,15 @@ app.get('/', (_req, res) => {
   `)
 })
 
+app.get('/quote', async (req, res) => {
+
+})
+
 // ---- API Routes ----
 app.post('/fill-order', async (req, res) => {
   try {
     const parsed = parseFillOrderRequest(req.body)
-    const signer = getNextSigner()
+    const signer = getNextSigner().wallet
     const receipt = await fillOrder(
       signer,
       parsed.dutchOrder,
@@ -95,8 +101,11 @@ app.post('/fill-order', async (req, res) => {
 app.post('/fill-order-hc', async (req, res) => {
   try {
     const parsed = parseFillOrderRequest(req.body)
-    const signer = getNextSigner()
+    const signerMeta  = getNextSigner()
+    const signer = signerMeta.wallet
+    const sdk = getSDK(signerMeta.pk);
     const receipt = await fillOrderHC(
+      sdk,
       signer,
       parsed.dutchOrder,
       parsed.tokenInAddress,

@@ -6,16 +6,13 @@ import { formatUnits } from "ethers/lib/utils";
 import { Percent } from "@hyperswap-labs/sdk-core";
 
 const defaultSlippage = .005;
-const apiPrivateKey = process.env.API_PRIVATE_KEY!;
-const apiWallet = process.env.API_WALLET_ADDRESS!;
 const SPOT_POSTFIX = "-SPOT";
 export const allowedPriceSlippage = new Percent(50, 10_000)
 
-
-export function getSDK(pkOrDefault?: string) {
+export function getSDK(pk: string) {
   return new Hyperliquid({
     enableWs: true,
-    privateKey: pkOrDefault ?? apiPrivateKey,
+    privateKey: pkOrDefault,
     // walletAddress: apiWallet, // only needed if this wallet is an API agent
   });
 }
@@ -136,25 +133,6 @@ export function formatWithdrawalSize(
   return s;
 }
 
-
-
-async function placeLimitOrderToInput(inputToken: SpotTokenExtended, priceLimit: string, amountUsd: number) {
-  const sdk = getSDK();
-  const market = `${inputToken.coin}-USD`;
-
-  console.log(`Rolling back → buying back ${inputToken.name} with USD`);
-
-  return sdk.exchange.placeOrder({
-    coin: inputToken.coin,
-    is_buy: true,
-    limit_px: priceLimit, // fallback to market if SDK supports it
-    sz: amountUsd, // safe default, can be replaced with proper amount logic
-    cloid: `ROLLBACK-${market}-${Date.now()}`,
-    reduce_only: false,
-    order_type: { limit: { tif: 'Ioc' } }
-  });
-}
-
 // -----------------------------------------------------------------------------
 // Main Swap Flow
 // -----------------------------------------------------------------------------
@@ -171,41 +149,20 @@ export async function swapHypercore(
   signer: Wallet
 ) {
   let swapState:SwapState = SwapState.Pending;
-  let amountUsd = 0;
 
   if(!inputToken || !outputToken || !inputToken.midPrice || !outputToken.midPrice || !inputToken.evmContract?.address || !outputToken.evmContract?.address) {
     console.log('Could not resolve swap metadata');
     return;
   }
 
-  try {
-    swapState = await executeSwap(sdk, orderId, inputToken, inputAmountRaw, inputTokenEvmDecimals, outputToken, minOutputAmountRaw, outputTokenEvmDecimals, signer)
+  swapState = await executeSwap(sdk, orderId, inputToken, inputAmountRaw, inputTokenEvmDecimals, outputToken, minOutputAmountRaw, outputTokenEvmDecimals, signer)
 
     // 5️⃣ Signal success
-    await signalOrderFilled(orderId, outputToken.evmContract.address, minOutputAmountRaw, signer);
-    swapState = SwapState.Completed;
+  await signalOrderFilled(orderId, outputToken.evmContract.address, minOutputAmountRaw, signer);
+  swapState = SwapState.Completed;
 
-    console.log(`[${orderId}] Swap completed successfully`);
-  } catch (ex) {
-    console.error(`[${orderId}] Swap failed at state ${swapState}:`, ex);
-
-    let returnedInputAmount = inputAmountRaw;
-
-    try {
-      if (swapState === SwapState.OrderPlacedUSD) {
-        returnedInputAmount = await placeLimitOrderToInput(inputToken, inputToken.midPrice.toString(),  amountUsd);
-        swapState = SwapState.Delegated;
-      }
-
-      if (swapState === SwapState.Delegated) {
-        await signalOrderFailed(orderId, inputToken.evmContract?.address, returnedInputAmount, signer);
-      }
-    } catch (rollbackEx) {
-      console.error(`[${orderId}] Rollback failed:`, rollbackEx);
-    }
-
-    console.log(`[${orderId}] FATAL: could not complete or return funds.`);
-  }
+  console.log(`[${orderId}] Swap completed successfully`);
+  
 }
 
 export async function getSpotInfos(sdk:Hyperliquid, inputAddress: string, outputAddress: string) {
@@ -284,7 +241,7 @@ export async function executeSwap(sdk: Hyperliquid, orderId: string,
       return swapState;
     }
 
-    await delegateFundsToHyperCore(orderId, inputToken, inputAmountRaw, signer);
+    //await delegateFundsToHyperCore(orderId, inputToken, inputAmountRaw, signer);
     swapState = SwapState.Delegated;
 
     try {
@@ -334,7 +291,7 @@ async function processErrors(sdk: Hyperliquid,
 
     }
   } catch(error) {
-    throw new Error("Fatal: Could not reslove order")
+    throw new Error("Fatal: Could not resolve order")
   }
 }
 

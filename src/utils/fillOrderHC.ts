@@ -3,8 +3,10 @@ import { HypercoreFillerAddress, SwapRouter02ExecutorAddress } from "../constant
 import TRUSTED_FILLER_ABI from '../abis/TrustedFiller.json'
 import { BigNumber, Contract, utils, Wallet } from "ethers";
 import { getSDK, getSpotInfos, swapHypercore } from "./hypercore-sdk-wrapper";
+import { Hyperliquid } from "hyperliquid";
 
 export async function fillOrderHC(
+  sdk: Hyperliquid,
   signer: Wallet,
   order: DutchOrder,
   tokenInAddress: string,
@@ -16,7 +18,6 @@ export async function fillOrderHC(
 
   const inputMetadata = order.info.input;
   const outputMetadata = order.info.outputs[0];
-  const sdk = getSDK();
   const [inputToken, outputToken] = await getSpotInfos(sdk, inputMetadata.token, outputMetadata.token);
 
   if(!inputToken || !outputToken || !inputToken.midPrice || !outputToken.midPrice || !inputToken.evmContract?.address) {
@@ -63,5 +64,5 @@ export async function fillOrderHC(
    const inputStartAmount = BigNumber.from((inputMetadata.startAmount as any).hex);
    const outputEndAmount = BigNumber.from((outputMetadata.endAmount as any).hex);
    
-   swapHypercore(sdk, order.hash(), inputToken, inputStartAmount.toString(), inputTokenDecimals, outputToken, outputEndAmount.toString(), outputTokenDecimals, signer)
+   await swapHypercore(sdk, order.hash(), inputToken, inputStartAmount.toString(), inputTokenDecimals, outputToken, outputEndAmount.toString(), outputTokenDecimals, signer)
 }
